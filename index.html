@@ -103,7 +103,7 @@
       margin-left: var(--sidebar-w);
       flex: 1;
       padding: 2rem 2.5rem;
-      max-width: 960px;
+      max-width: none;
       padding-bottom: 340px;
     }
     .main.full-width { max-width: none; }
@@ -452,6 +452,26 @@
     .search-dropdown-item .path-tags { font-size: 0.68rem; color: var(--dim); flex-shrink: 0; }
     .search-wrap { position: relative; flex: 1; display: flex; align-items: center; }
 
+    /* Collapsible cards */
+    .collapse-header {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.65rem 1rem; cursor: pointer; user-select: none;
+      border-bottom: 1px solid transparent; transition: background 0.12s;
+    }
+    .collapse-header:hover { background: rgba(99,102,241,0.06); }
+    .collapse-card.open .collapse-header { border-bottom-color: var(--border); }
+    .collapse-title { font-size: 0.82rem; font-weight: 600; color: var(--bright); flex: 1; }
+    .collapse-badge {
+      font-size: 0.68rem; font-weight: 700; padding: 1px 7px;
+      border-radius: 10px; background: rgba(99,102,241,0.15); color: #a5b4fc;
+      display: none;
+    }
+    .collapse-badge.visible { display: inline-block; }
+    .collapse-chevron { font-size: 1rem; color: var(--dim); transition: transform 0.2s; line-height: 1; }
+    .collapse-card.open .collapse-chevron { transform: rotate(180deg); }
+    .collapse-body { display: none; }
+    .collapse-card.open .collapse-body { display: block; }
+
     /* CORS notice */
     .cors-notice {
       background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.2);
@@ -579,31 +599,43 @@
 
     </div>
 
-    <!-- Params tabs -->
-    <div class="card" style="padding:0;overflow:hidden">
-      <div class="pg-tabs-bar" style="padding:0 1rem;background:var(--surface)">
-        <button class="pg-tab pg-tab-active" id="tab-path" onclick="switchParamTab('path')">Path Params</button>
-        <button class="pg-tab" id="tab-query" onclick="switchParamTab('query')">Query Params</button>
-        <button class="pg-tab" id="tab-body" onclick="switchParamTab('body')">Body</button>
+    <!-- Path Params collapsible card -->
+    <div class="card collapse-card" id="card-path" style="padding:0;overflow:hidden;margin-bottom:0.75rem">
+      <div class="collapse-header" onclick="toggleCard('path')">
+        <span class="collapse-title">Path Params</span>
+        <span class="collapse-badge" id="badge-path"></span>
+        <span class="collapse-chevron" id="chev-path">&#8964;</span>
       </div>
-
-      <!-- Path params -->
-      <div class="pg-tab-panel active" id="panel-path" style="padding:1rem">
-        <div id="path-params-content">
+      <div class="collapse-body" id="panel-path">
+        <div id="path-params-content" style="padding:1rem">
           <p class="text-muted empty-params">No path parameters.</p>
         </div>
       </div>
+    </div>
 
-      <!-- Query params -->
-      <div class="pg-tab-panel" id="panel-query" style="padding:1rem">
-        <div id="query-params-content">
+    <!-- Query Params collapsible card -->
+    <div class="card collapse-card" id="card-query" style="padding:0;overflow:hidden;margin-bottom:0.75rem">
+      <div class="collapse-header" onclick="toggleCard('query')">
+        <span class="collapse-title">Query Params</span>
+        <span class="collapse-badge" id="badge-query"></span>
+        <span class="collapse-chevron" id="chev-query">&#8964;</span>
+      </div>
+      <div class="collapse-body" id="panel-query">
+        <div id="query-params-content" style="padding:1rem">
           <p class="text-muted empty-params">No query parameters.</p>
         </div>
       </div>
+    </div>
 
-      <!-- Body -->
-      <div class="pg-tab-panel" id="panel-body" style="padding:1rem">
-        <div id="body-content">
+    <!-- Body collapsible card -->
+    <div class="card collapse-card" id="card-body" style="padding:0;overflow:hidden;margin-bottom:0.75rem">
+      <div class="collapse-header" onclick="toggleCard('body')">
+        <span class="collapse-title">Body</span>
+        <span class="collapse-badge" id="badge-body"></span>
+        <span class="collapse-chevron" id="chev-body">&#8964;</span>
+      </div>
+      <div class="collapse-body" id="panel-body">
+        <div id="body-content" style="padding:1rem">
           <p class="text-muted empty-params">No request body for this method.</p>
         </div>
       </div>
@@ -1412,7 +1444,10 @@ function renderEntitlements(ep) {
 
 function renderPathParams(ep) {
   const container = document.getElementById('path-params-content');
-  if (!ep.pathParams.length) {
+  const hasParams = ep.pathParams.length > 0;
+  setCardBadge('path', ep.pathParams.length);
+  toggleCard('path', hasParams);
+  if (!hasParams) {
     container.innerHTML = '<p class="text-muted empty-params">No path parameters.</p>';
     return;
   }
@@ -1433,7 +1468,10 @@ function renderPathParams(ep) {
 
 function renderQueryParams(ep) {
   const container = document.getElementById('query-params-content');
-  if (!ep.queryParams.length) {
+  const hasParams = ep.queryParams.length > 0;
+  setCardBadge('query', ep.queryParams.length);
+  toggleCard('query', hasParams);
+  if (!hasParams) {
     container.innerHTML = '<p class="text-muted empty-params">No query parameters.</p>';
     return;
   }
@@ -1460,8 +1498,11 @@ function renderQueryParams(ep) {
 
 function renderBody(ep) {
   const container = document.getElementById('body-content');
+  const hasBody = ['POST','PUT','PATCH'].includes(ep.method) && (ep.bodyMinimal !== null || ep.bodyFull !== null);
+  setCardBadge('body', hasBody ? 1 : 0);
+  toggleCard('body', hasBody);
 
-  if (!['POST','PUT','PATCH'].includes(ep.method) || (ep.bodyMinimal === null && ep.bodyFull === null)) {
+  if (!hasBody) {
     container.innerHTML = '<p class="text-muted empty-params">No request body for this method.</p>';
     if (_cmEditor) { try { _cmEditor.toTextArea(); } catch {} _cmEditor = null; }
     return;
@@ -1511,14 +1552,25 @@ function toggleReqPill(el, field) {
   el.classList.toggle('active');
 }
 
-function switchParamTab(tab) {
-  ['path','query','body'].forEach(t => {
-    document.getElementById('tab-' + t)?.classList.toggle('pg-tab-active', t === tab);
-    document.getElementById('panel-' + t)?.classList.toggle('active', t === tab);
-  });
-  if (tab === 'body' && _cmEditor) {
+function toggleCard(name, forceOpen) {
+  const card = document.getElementById('card-' + name);
+  if (!card) return;
+  const open = forceOpen !== undefined ? forceOpen : !card.classList.contains('open');
+  card.classList.toggle('open', open);
+  if (open && name === 'body' && _cmEditor) {
     setTimeout(() => _cmEditor.refresh(), 50);
   }
+}
+
+function setCardBadge(name, count) {
+  const badge = document.getElementById('badge-' + name);
+  if (!badge) return;
+  if (count > 0) { badge.textContent = count; badge.classList.add('visible'); }
+  else { badge.textContent = ''; badge.classList.remove('visible'); }
+}
+
+function switchParamTab(tab) {
+  // legacy — no-op since we use collapsible cards now
 }
 
 function switchRespTab(tab) {
@@ -1641,6 +1693,10 @@ function clearPlayground() {
   document.getElementById('pg-desc-row').textContent = '';
   document.getElementById('pg-desc-row').style.display = 'none';
   document.getElementById('pg-ent-card').style.display = 'none';
+  ['path','query','body'].forEach(n => {
+    toggleCard(n, false);
+    setCardBadge(n, 0);
+  });
   document.getElementById('path-params-content').innerHTML = '<p class="text-muted empty-params">No path parameters.</p>';
   document.getElementById('query-params-content').innerHTML = '<p class="text-muted empty-params">No query parameters.</p>';
   document.getElementById('body-content').innerHTML = '<p class="text-muted empty-params">No request body for this method.</p>';
