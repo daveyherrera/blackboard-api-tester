@@ -533,15 +533,16 @@
 
     <!-- Top bar: client selector + version -->
     <div class="pg-top-bar">
-      <label style="white-space:nowrap">Client:</label>
-      <select id="pg-client-select" onchange="onPgClientChange(this.value)"></select>
-      <label style="white-space:nowrap;margin-left:0.5rem">API Version:</label>
-      <div class="version-select-wrap">
-        <select id="pg-version-select" onchange="onPgVersionChange(this.value)">
+      <label style="white-space:nowrap;margin:0;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--dim)">Client</label>
+      <select id="pg-client-select" onchange="onPgClientChange(this.value)" style="flex:1;min-width:160px;max-width:280px"></select>
+      <label style="white-space:nowrap;margin:0 0 0 0.5rem;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--dim)">API Version</label>
+      <div class="version-select-wrap" style="margin:0">
+        <select id="pg-version-select" onchange="onPgVersionChange(this.value)" style="width:auto">
           <option value="">Latest</option>
         </select>
         <button class="btn btn-sm btn-ghost" onclick="detectAndSetVersion()" title="Auto-detect version from Learn instance">&#128270; Detect</button>
       </div>
+      <span id="pg-loaded-label" style="margin-left:auto;font-size:0.72rem;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px"></span>
     </div>
 
     <!-- Request card -->
@@ -564,17 +565,16 @@
         <button class="btn btn-sm btn-clear" onclick="clearPlayground()" title="Clear" style="flex-shrink:0">&#10005;</button>
       </div>
 
-      <!-- Row 2: URL preview -->
-      <div class="pg-url-bar" id="pg-url-bar" style="margin-top:0.6rem">—</div>
+      <!-- Row 2: method + path -->
+      <div id="pg-url-bar" style="margin-top:0.55rem;font-family:monospace;font-size:0.76rem;color:var(--muted);padding:5px 8px;background:rgba(0,0,0,0.2);border-radius:5px;word-break:break-all;min-height:26px">—</div>
 
       <!-- Row 3: Description -->
       <div class="pg-desc-row" id="pg-desc-row" style="display:none;margin-bottom:0"></div>
 
       <!-- Row 4: Entitlements -->
-      <div id="pg-ent-card" style="display:none;margin-top:0.6rem;padding:0.55rem 0.75rem;background:rgba(99,102,241,0.04);border:1px solid rgba(99,102,241,0.15);border-radius:7px">
-        <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--dim);margin-bottom:0.5rem">Required Entitlements</div>
-        <div id="pg-ent-pills" class="ent-pill-wrap" style="margin-bottom:0.35rem"></div>
-        <div id="pg-ent-descs" style="font-size:0.75rem;color:var(--muted);display:flex;flex-direction:column;gap:0.15rem"></div>
+      <div id="pg-ent-card" style="display:none;margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(99,102,241,0.04);border:1px solid rgba(99,102,241,0.15);border-radius:7px">
+        <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--dim);margin-bottom:0.45rem">Required Entitlements</div>
+        <div id="pg-ent-pills" style="display:flex;flex-direction:column;gap:0.3rem"></div>
       </div>
 
     </div>
@@ -1221,7 +1221,10 @@ async function pgLoadSwagger(client) {
     showToast('Loading API catalog…', 2000);
     const sw = await loadSwagger(swUrl);
     _pgCatalog = buildCatalog(sw);
-    document.getElementById('sb-api-version').textContent = getSwaggerVersion(sw);
+    const ver = getSwaggerVersion(sw);
+    document.getElementById('sb-api-version').textContent = ver;
+    const loadedEl = document.getElementById('pg-loaded-label');
+    if (loadedEl) loadedEl.textContent = client.url ? `Loaded to: ${client.url}` : '';
     showToast(`Loaded ${_pgCatalog.length} endpoints`, 2000);
   } catch (e) {
     showToast('Failed to load swagger: ' + e.message, 4000);
@@ -1363,14 +1366,14 @@ function onPgSearchKey(e) {
 
 function selectEndpoint(ep) {
   _pgCurrentEndpoint = ep;
-  document.getElementById('pg-search').value = ep.path;
+  document.getElementById('pg-search').value = ep.summary || ep.path;
   document.getElementById('pg-method-badge').textContent = ep.method;
   document.getElementById('pg-method-badge').className = `method-badge method-${ep.method}`;
   const descEl = document.getElementById('pg-desc-row');
   descEl.textContent = ep.description;
   descEl.style.display = ep.description ? '' : 'none';
 
-  updateUrlPreview();
+  updateUrlBar();
   renderEntitlements(ep);
   renderPathParams(ep);
   renderQueryParams(ep);
@@ -1379,30 +1382,32 @@ function selectEndpoint(ep) {
   hideDropdown();
 }
 
-function updateUrlPreview() {
+function updateUrlBar() {
   const client = getActiveClient();
   const ep = _pgCurrentEndpoint;
-  if (!ep) { document.getElementById('pg-url-bar').textContent = '—'; return; }
+  const bar = document.getElementById('pg-url-bar');
+  if (!ep) { bar.innerHTML = '—'; return; }
   const base = client?.url || '';
   let path = ep.path;
-  // Fill in path params from inputs
   for (const p of ep.pathParams) {
     const inp = document.getElementById(`pp-${p.name}`);
     const val = inp ? inp.value : `{${p.name}}`;
     path = path.replace(`{${p.name}}`, val || `{${p.name}}`);
   }
-  document.getElementById('pg-url-bar').textContent = base + path;
+  bar.innerHTML = `<span style="opacity:0.5;margin-right:0.5em">${ep.method}</span>${escHtml(base + path)}`;
 }
 
 function renderEntitlements(ep) {
   const card = document.getElementById('pg-ent-card');
   const pills = document.getElementById('pg-ent-pills');
-  const descs = document.getElementById('pg-ent-descs');
-
   if (!ep.entitlements.length) { card.style.display = 'none'; return; }
   card.style.display = '';
-  pills.innerHTML = ep.entitlements.map(e => `<span class="ent-pill" title="${escHtml(e.description)}">${escHtml(e.name)}</span>`).join('');
-  descs.innerHTML = ep.entitlements.map(e => `<div>${escHtml(e.description)}</div>`).join('');
+  pills.innerHTML = ep.entitlements.map(e =>
+    `<div style="display:flex;align-items:center;gap:0.5rem">
+      <span class="ent-pill">${escHtml(e.name)}</span>
+      <span style="font-size:0.75rem;color:var(--muted)">${escHtml(e.description)}</span>
+    </div>`
+  ).join('');
 }
 
 function renderPathParams(ep) {
@@ -1417,7 +1422,7 @@ function renderPathParams(ep) {
       <tr>
         <td><span class="param-name">${escHtml(p.name)}</span>${p.required ? '<span class="param-required">*</span>' : ''}</td>
         <td><span class="param-type">${escHtml(p.type)}</span></td>
-        <td><input class="param-input" id="pp-${escAttr(p.name)}" placeholder="${escAttr(p.name)}" oninput="updateUrlPreview()" /></td>
+        <td><input class="param-input" id="pp-${escAttr(p.name)}" placeholder="${escAttr(p.name)}" oninput="updateUrlBar()" /></td>
         <td>
           <div class="param-desc">${escHtml(p.description)}</div>
           ${p.lookupTypes.length ? `<div class="param-enum">Lookup types: ${p.lookupTypes.map(t => `<code>${escHtml(t)}</code>`).join(', ')}</div>` : ''}
