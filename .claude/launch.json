@@ -2,15 +2,6 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "bb-playground",
-      "runtimeExecutable": "bash",
-      "runtimeArgs": [
-        "-c",
-        "cd '/Users/davey.herrera/bb-playground' && python3 -m uvicorn app.main:app --port 8001 --loop asyncio"
-      ],
-      "port": 8001
-    },
-    {
       "name": "bb-playground-static",
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8099", "--directory", "/Users/davey.herrera/bb-playground"],
