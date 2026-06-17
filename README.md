@@ -49,11 +49,12 @@ App Key and Secret come from the **Blackboard Developer Portal**, not from withi
 6. Set **End User Access** to *Yes* or *No* depending on whether individual users will authenticate.
 7. Select **Submit** to save.
 
-> **CORS:** Because this tool calls your Learn instance directly from the browser, you may need to add the app's origin to your integration's allowed origins. If you encounter CORS errors, go to **REST API Integrations → Edit → Allowed Origins** and add:
-> - Local: `http://localhost:8099`
-> - GitHub Pages: `https://daveyherrera.github.io`
+> **CORS required:** Because this tool makes browser-to-Learn requests, you must allow this app's origin in your Learn instance. Go to **Administrator Panel → Integrations → Cross-origin Resource Sharing → Create Configuration** and set:
+> - **Origin:** the URL where the tester is running (e.g. `https://daveyherrera.github.io` or `http://localhost:8099`)
+> - **Allowed Headers:** `Authorization`
+> - **Available:** Yes → Submit
 >
-> The Settings page shows the current origin automatically.
+> The Settings page shows the current origin so you know exactly what to enter.
 
 ---
 

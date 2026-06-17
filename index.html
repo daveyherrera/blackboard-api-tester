@@ -655,7 +655,10 @@
         <li>Select <strong>Submit</strong> to save.</li>
       </ol>
       <p style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted)">
-        &#127760; <strong>CORS:</strong> Since this tool calls your Learn instance directly from the browser (<code id="cors-origin-display">—</code>), you may need to add this origin to your integration's allowed origins in Learn. If requests fail with a CORS error, check your integration settings under <strong>REST API Integrations → Edit → Allowed Origins</strong>.
+        &#127760; <strong>CORS required:</strong> Because this tool makes browser-to-Learn requests, you must allow this origin in your Learn instance. Go to <strong>Administrator Panel → Integrations → Cross-origin Resource Sharing → Create Configuration</strong> and set:
+        <br>• <strong>Origin:</strong> <code id="cors-origin-display">—</code>
+        <br>• <strong>Allowed Headers:</strong> <code>Authorization</code>
+        <br>• <strong>Available:</strong> Yes — then Submit.
       </p>
     </div>
 
