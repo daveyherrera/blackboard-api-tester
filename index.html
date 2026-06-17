@@ -218,6 +218,7 @@
     .btn-xs { padding: 0.15rem 0.45rem; font-size: 0.7rem; }
     .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
     .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+    .btn-clear { background: transparent; border: 1px solid var(--danger); color: var(--error); padding: 0.3rem 0.6rem; }
     .btn-full { width: 100%; margin-top: 1rem; }
     .btn-loading { opacity: 0.75; cursor: not-allowed; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -471,6 +472,7 @@
     .ml-auto { margin-left: auto; }
     .no-endpoints { color: var(--dim); font-size: 0.85rem; padding: 2rem; text-align: center; }
     .loading-text { color: var(--dim); font-size: 0.82rem; padding: 1rem; text-align: center; }
+    .empty-params { text-align: center; padding: 1rem; }
     hr { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; }
     .text-muted { color: var(--muted); font-size: 0.82rem; }
     .monospace { font-family: monospace; }
@@ -492,7 +494,7 @@
 <nav class="sidebar">
   <div class="sidebar-logo">
     <h1>BB API Playground</h1>
-    <p>Blackboard Learn REST API</p>
+    <p>Blackboard LMS REST API</p>
   </div>
   <span class="nav-section-label">Tools</span>
   <div class="nav-item active" id="nav-playground" onclick="navigate('playground')">
@@ -521,7 +523,7 @@
   <div class="page active" id="page-playground">
     <div class="page-header">
       <h2>API Playground</h2>
-      <p>Explore and test Blackboard Learn REST API endpoints directly.</p>
+      <p>Explore and test Blackboard LMS REST API endpoints directly.</p>
     </div>
 
     <!-- No client alert -->
@@ -555,7 +557,7 @@
       </div>
       <button class="btn btn-sm btn-primary" onclick="sendRequest()" id="pg-send-btn">Send</button>
       <button class="btn btn-sm btn-ghost" onclick="copyCurl()" title="Copy as cURL">cURL</button>
-      <button class="btn btn-sm" style="background:transparent;border:1px solid var(--danger);color:var(--error);padding:0.3rem 0.6rem" onclick="clearPlayground()" title="Clear">&#10005;</button>
+      <button class="btn btn-sm btn-clear" onclick="clearPlayground()" title="Clear">&#10005;</button>
     </div>
 
     <!-- URL preview -->
@@ -584,21 +586,21 @@
       <!-- Path params -->
       <div class="pg-tab-panel active" id="panel-path" style="padding:1rem">
         <div id="path-params-content">
-          <p class="text-muted" style="text-align:center;padding:1rem">No path parameters.</p>
+          <p class="text-muted empty-params">No path parameters.</p>
         </div>
       </div>
 
       <!-- Query params -->
       <div class="pg-tab-panel" id="panel-query" style="padding:1rem">
         <div id="query-params-content">
-          <p class="text-muted" style="text-align:center;padding:1rem">No query parameters.</p>
+          <p class="text-muted empty-params">No query parameters.</p>
         </div>
       </div>
 
       <!-- Body -->
       <div class="pg-tab-panel" id="panel-body" style="padding:1rem">
         <div id="body-content">
-          <p class="text-muted" style="text-align:center;padding:1rem">No request body for this method.</p>
+          <p class="text-muted empty-params">No request body for this method.</p>
         </div>
       </div>
     </div>
@@ -636,7 +638,7 @@
   <div class="page" id="page-settings">
     <div class="page-header">
       <h2>Settings</h2>
-      <p>Manage your Blackboard Learn API clients.</p>
+      <p>Manage your Blackboard LMS API clients.</p>
     </div>
 
     <!-- CORS notice -->
@@ -644,7 +646,7 @@
       <h4>&#128274; CORS Configuration Required</h4>
       <p>To make API calls directly from the browser, you must allow this page's origin in your Learn instance:</p>
       <ol>
-        <li>Log into Blackboard Learn as a System Administrator.</li>
+        <li>Log into Blackboard LMS as a System Administrator.</li>
         <li>Go to <strong>System Admin → REST API Integrations</strong>.</li>
         <li>Open your integration and add <code id="cors-origin-display">—</code> to the <strong>Allowed Origins</strong> list.</li>
         <li>Save and test with the <em>Detect Version</em> button below.</li>
@@ -658,7 +660,7 @@
         <button class="btn btn-sm btn-primary" onclick="openClientForm()">+ Add Client</button>
       </div>
       <div id="client-list">
-        <p class="text-muted" style="text-align:center;padding:1rem">No clients configured.</p>
+        <p class="text-muted empty-params">No clients configured.</p>
       </div>
     </div>
 
@@ -1378,7 +1380,7 @@ function renderEntitlements(ep) {
 function renderPathParams(ep) {
   const container = document.getElementById('path-params-content');
   if (!ep.pathParams.length) {
-    container.innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem">No path parameters.</p>';
+    container.innerHTML = '<p class="text-muted empty-params">No path parameters.</p>';
     return;
   }
   container.innerHTML = `<table class="params-table">
@@ -1399,7 +1401,7 @@ function renderPathParams(ep) {
 function renderQueryParams(ep) {
   const container = document.getElementById('query-params-content');
   if (!ep.queryParams.length) {
-    container.innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem">No query parameters.</p>';
+    container.innerHTML = '<p class="text-muted empty-params">No query parameters.</p>';
     return;
   }
   container.innerHTML = `<table class="params-table">
@@ -1427,7 +1429,7 @@ function renderBody(ep) {
   const container = document.getElementById('body-content');
 
   if (!['POST','PUT','PATCH'].includes(ep.method) || (ep.bodyMinimal === null && ep.bodyFull === null)) {
-    container.innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem">No request body for this method.</p>';
+    container.innerHTML = '<p class="text-muted empty-params">No request body for this method.</p>';
     if (_cmEditor) { try { _cmEditor.toTextArea(); } catch {} _cmEditor = null; }
     return;
   }
@@ -1605,9 +1607,9 @@ function clearPlayground() {
   document.getElementById('pg-url-bar').textContent = '—';
   document.getElementById('pg-desc-row').textContent = '';
   document.getElementById('pg-ent-card').style.display = 'none';
-  document.getElementById('path-params-content').innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem">No path parameters.</p>';
-  document.getElementById('query-params-content').innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem">No query parameters.</p>';
-  document.getElementById('body-content').innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem">No request body for this method.</p>';
+  document.getElementById('path-params-content').innerHTML = '<p class="text-muted empty-params">No path parameters.</p>';
+  document.getElementById('query-params-content').innerHTML = '<p class="text-muted empty-params">No query parameters.</p>';
+  document.getElementById('body-content').innerHTML = '<p class="text-muted empty-params">No request body for this method.</p>';
   if (_cmEditor) { try { _cmEditor.toTextArea(); } catch {} _cmEditor = null; }
   clearResponse();
   hideError();
@@ -1665,7 +1667,7 @@ function renderSettings() {
   const container = document.getElementById('client-list');
   const clients = getClients();
   if (!clients.length) {
-    container.innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem">No clients configured.</p>';
+    container.innerHTML = '<p class="text-muted empty-params">No clients configured.</p>';
     return;
   }
   container.innerHTML = clients.map(c => `
@@ -1699,32 +1701,27 @@ function removeClient(id) {
   updatePgClientSelect();
 }
 
-function editClient(id) {
-  const client = getClients().find(c => c.id === id);
-  if (!client) return;
-  document.getElementById('form-client-id').value = client.id;
-  document.getElementById('form-name').value = client.name;
-  document.getElementById('form-url').value = client.url;
-  document.getElementById('form-key').value = client.app_key;
-  document.getElementById('form-secret').value = client.secret;
-  document.getElementById('form-swagger').value = client.swagger_url || '';
-  document.getElementById('client-form-title').textContent = 'Edit Client';
+function showClientForm(client = null) {
+  document.getElementById('form-client-id').value = client?.id || '';
+  document.getElementById('form-name').value = client?.name || '';
+  document.getElementById('form-url').value = client?.url || '';
+  document.getElementById('form-key').value = client?.app_key || '';
+  document.getElementById('form-secret').value = client?.secret || '';
+  document.getElementById('form-swagger').value = client?.swagger_url || '';
+  document.getElementById('client-form-title').textContent = client ? 'Edit Client' : 'Add Client';
   document.getElementById('detect-version-result').textContent = '';
   document.getElementById('client-form-card').style.display = '';
   document.getElementById('client-form-card').scrollIntoView({ behavior: 'smooth' });
 }
 
+function editClient(id) {
+  const client = getClients().find(c => c.id === id);
+  if (!client) return;
+  showClientForm(client);
+}
+
 function openClientForm() {
-  document.getElementById('form-client-id').value = '';
-  document.getElementById('form-name').value = '';
-  document.getElementById('form-url').value = '';
-  document.getElementById('form-key').value = '';
-  document.getElementById('form-secret').value = '';
-  document.getElementById('form-swagger').value = '';
-  document.getElementById('client-form-title').textContent = 'Add Client';
-  document.getElementById('detect-version-result').textContent = '';
-  document.getElementById('client-form-card').style.display = '';
-  document.getElementById('client-form-card').scrollIntoView({ behavior: 'smooth' });
+  showClientForm();
 }
 
 function closeClientForm() {
