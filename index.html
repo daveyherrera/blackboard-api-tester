@@ -1083,6 +1083,8 @@ function buildCatalog(swagger) {
       catalog.push({
         method: method.toUpperCase(),
         path,
+        summary: op.summary || '',
+        operationId: op.operationId || '',
         description: firstSentence,
         fullDescription: fullDesc,
         entitlements,
@@ -1170,7 +1172,14 @@ function navigate(page) {
   if (navEl) navEl.classList.add('active');
 
   if (page === 'settings') renderSettings();
-  if (page === 'playground') pgInit();
+  if (page === 'playground') {
+    // Re-evaluate banner and client UI; only reload swagger if catalog is empty
+    const client = getActiveClient();
+    document.getElementById('pg-no-client').style.display = client ? 'none' : '';
+    updateSidebarChip();
+    updatePgClientSelect();
+    if (client && !_pgCatalog.length) pgLoadSwagger(client);
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -1285,6 +1294,8 @@ function onPgSearch(val) {
   _dropdownItems = _pgCatalog.filter(ep =>
     ep.path.toLowerCase().includes(lower) ||
     ep.method.toLowerCase().includes(lower) ||
+    ep.summary.toLowerCase().includes(lower) ||
+    ep.operationId.toLowerCase().includes(lower) ||
     ep.description.toLowerCase().includes(lower) ||
     ep.tags.some(t => t.toLowerCase().includes(lower))
   ).slice(0, 50);
@@ -1298,7 +1309,7 @@ function renderDropdown() {
   dd.innerHTML = _dropdownItems.map((ep, i) => `
     <div class="search-dropdown-item${i === _dropdownIdx ? ' selected' : ''}" data-idx="${i}" onmousedown="selectDropdownItem(${i})">
       <span class="method-badge method-${ep.method}" style="font-size:0.65rem;padding:1px 5px">${ep.method}</span>
-      <span class="path-text">${escHtml(ep.path)}</span>
+      <span class="path-text" style="flex:1;min-width:0">${ep.summary ? `<span style="font-weight:600">${escHtml(ep.summary)}</span> <span style="opacity:0.55;font-size:0.8em">${escHtml(ep.path)}</span>` : escHtml(ep.path)}</span>
       <span class="path-tags">${ep.tags.slice(0,1).join('')}</span>
     </div>`).join('');
   dd.style.display = 'block';
