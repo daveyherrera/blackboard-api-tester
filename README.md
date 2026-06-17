@@ -33,23 +33,27 @@ Open **Settings** and click **+ Add Client**. Fill in:
 
 Click **Save**, then **Activate** the client. The sidebar footer will update to show the active client and its detected API version.
 
-> **Where to find your App Key and Secret:** In Learn, go to **System Admin → REST API Integrations** and open your integration.
+> **Where to find your App Key and Secret:** Register your application on the [Anthology Developer Portal](https://developer.anthology.com) — credentials are issued there, not from within Blackboard LMS.
 
 ---
 
-### 2. Configure CORS (required for browser-to-Learn calls)
+### 2. Get credentials from the Anthology Developer Portal
 
-Because this tool calls your Learn instance directly from the browser, you need to add this app's origin to your integration's allowed origins:
+App Key and Secret come from the **Anthology Developer Portal**, not from within Blackboard LMS:
 
-1. Log into Blackboard LMS as a **System Administrator**
-2. Go to **System Admin → REST API Integrations**
-3. Open your integration and find **Allowed Origins**
-4. Add the URL of wherever you're running the tester:
-   - Local: `http://localhost:8099`
-   - GitHub Pages: `https://daveyherrera.github.io`
-5. Save — no restart needed
+1. Register your application at the [Anthology Developer Portal](https://developer.anthology.com) to receive an **Application ID**, **App Key**, and **Secret**.
+2. Log into Blackboard LMS as a **System Administrator**.
+3. Go to **Administrator Panel → Integrations → REST API Integrations**.
+4. Select **Create Integration** and enter the **Application ID** from the Developer Portal.
+5. Set the **Learn User** the integration should act as (use a dedicated integration user).
+6. Set **End User Access** to *Yes* or *No* depending on whether individual users will authenticate.
+7. Select **Submit** to save.
 
-> The Settings page shows the current origin automatically so you always know exactly what to whitelist.
+> **CORS:** Because this tool calls your Learn instance directly from the browser, you may need to add the app's origin to your integration's allowed origins. If you encounter CORS errors, go to **REST API Integrations → Edit → Allowed Origins** and add:
+> - Local: `http://localhost:8099`
+> - GitHub Pages: `https://daveyherrera.github.io`
+>
+> The Settings page shows the current origin automatically.
 
 ---
 

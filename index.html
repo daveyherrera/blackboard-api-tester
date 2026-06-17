@@ -641,16 +641,22 @@
       <p>Manage your Blackboard LMS API clients.</p>
     </div>
 
-    <!-- CORS notice -->
+    <!-- Setup notice -->
     <div class="cors-notice">
-      <h4>&#128274; CORS Configuration Required</h4>
-      <p>To make API calls directly from the browser, you must allow this page's origin in your Learn instance:</p>
+      <h4>&#128366; How to get your App Key &amp; Secret</h4>
+      <p>Credentials come from the <strong>Anthology Developer Portal</strong>, not from within Blackboard LMS itself:</p>
       <ol>
-        <li>Log into Blackboard LMS as a System Administrator.</li>
-        <li>Go to <strong>System Admin → REST API Integrations</strong>.</li>
-        <li>Open your integration and add <code id="cors-origin-display">—</code> to the <strong>Allowed Origins</strong> list.</li>
-        <li>Save and test with the <em>Detect Version</em> button below.</li>
+        <li>Register your application at the <a href="https://developer.anthology.com" target="_blank" rel="noopener" style="color:var(--accent)">Anthology Developer Portal</a> to receive an <strong>Application ID</strong>, <strong>App Key</strong>, and <strong>Secret</strong>.</li>
+        <li>Log into Blackboard LMS as a <strong>System Administrator</strong>.</li>
+        <li>Go to <strong>Administrator Panel → Integrations → REST API Integrations</strong>.</li>
+        <li>Select <strong>Create Integration</strong> and enter the <strong>Application ID</strong> from the Developer Portal.</li>
+        <li>Set the <strong>Learn User</strong> the integration should act as (use a dedicated integration user, not a full admin).</li>
+        <li>Set <strong>End User Access</strong> to <em>Yes</em> if individual users will sign in, or <em>No</em> if the integration always acts as the designated user.</li>
+        <li>Select <strong>Submit</strong> to save.</li>
       </ol>
+      <p style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted)">
+        &#127760; <strong>CORS:</strong> Since this tool calls your Learn instance directly from the browser (<code id="cors-origin-display">—</code>), you may need to add this origin to your integration's allowed origins in Learn. If requests fail with a CORS error, check your integration settings under <strong>REST API Integrations → Edit → Allowed Origins</strong>.
+      </p>
     </div>
 
     <!-- Client list -->
