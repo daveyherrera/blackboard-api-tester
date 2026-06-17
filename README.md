@@ -33,7 +33,7 @@ Open **Settings** and click **+ Add Client**. Fill in:
 
 Click **Save**, then **Activate** the client. The sidebar footer will update to show the active client and its detected API version.
 
-> **Where to find your App Key and Secret:** Register your application on the [Blackboard Developer Portal](https://developer.anthology.com) — credentials are issued there, not from within Blackboard LMS.
+> **Where to find your App Key and Secret:** Register your application on the [Blackboard Developer Portal](https://developer.blackboard.com) — credentials are issued there, not from within Blackboard LMS.
 
 ---
 
@@ -41,7 +41,7 @@ Click **Save**, then **Activate** the client. The sidebar footer will update to 
 
 App Key and Secret come from the **Blackboard Developer Portal**, not from within Blackboard LMS:
 
-1. Register your application at the [Blackboard Developer Portal](https://developer.anthology.com) to receive an **Application ID**, **App Key**, and **Secret**.
+1. Register your application at the [Blackboard Developer Portal](https://developer.blackboard.com) to receive an **Application ID**, **App Key**, and **Secret**.
 2. Log into Blackboard LMS as a **System Administrator**.
 3. Go to **Administrator Panel → Integrations → REST API Integrations**.
 4. Select **Create Integration** and enter the **Application ID** from the Developer Portal.
