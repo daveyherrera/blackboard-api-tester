@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+database/*.db
+database/swagger-*.json
+database/path_swagger-*.json
+database/swagger_last_update-*.json
+.env
+app/
+static/

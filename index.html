@@ -1,0 +1,1843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BB API Playground</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --border: #334155;
+      --muted: #94a3b8;
+      --dim: #475569;
+      --text: #e2e8f0;
+      --bright: #f8fafc;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --danger: #991b1b;
+      --danger-hover: #7f1d1d;
+      --success: #4ade80;
+      --error: #f87171;
+      --sidebar-w: 220px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem 0;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      overflow-y: auto;
+    }
+
+    .sidebar-logo {
+      padding: 0 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1rem;
+    }
+
+    .sidebar-logo h1 { font-size: 0.95rem; font-weight: 700; color: var(--bright); }
+    .sidebar-logo p { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.6rem 1.25rem;
+      font-size: 0.875rem;
+      color: var(--muted);
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: all 0.1s;
+      user-select: none;
+    }
+
+    .nav-item:hover { color: var(--text); background: rgba(99,102,241,0.06); }
+
+    .nav-item.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: rgba(99,102,241,0.1);
+      font-weight: 600;
+    }
+
+    .nav-icon { font-size: 1rem; width: 1.2rem; text-align: center; }
+
+    .nav-section-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--dim);
+      padding: 1rem 1.25rem 0.4rem;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 1rem 1.25rem 0;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Main ── */
+    .main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      padding: 2rem 2.5rem;
+      max-width: 960px;
+      padding-bottom: 340px;
+    }
+    .main.full-width { max-width: none; }
+
+    /* ── Request log panel ── */
+    #req-log-panel {
+      position: fixed;
+      bottom: 0;
+      left: var(--sidebar-w);
+      right: 0;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: monospace;
+      font-size: 0.75rem;
+      z-index: 100;
+      border-top: 2px solid #334155;
+      transition: height 0.2s ease;
+    }
+    #req-log-panel.collapsed { height: 32px; overflow: hidden; }
+    #req-log-panel.expanded  { height: 280px; }
+    #req-log-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0 0.75rem;
+      height: 32px;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1px solid #1e293b;
+    }
+    #req-log-header span { color: #94a3b8; font-size: 0.7rem; }
+    #req-log-toggle { margin-left: auto; color: #64748b; font-size: 0.8rem; }
+    #req-log-body   { height: calc(100% - 32px); overflow-y: auto; padding: 0.5rem 0; }
+    .req-entry { padding: 0.35rem 0.75rem; border-bottom: 1px solid #1e293b; display: grid; grid-template-columns: 5rem 3.5rem 1fr; gap: 0.5rem; align-items: start; }
+    .req-entry:last-child { border-bottom: none; }
+    .req-time  { color: #475569; white-space: nowrap; }
+    .req-method { font-weight: 700; }
+    .req-method.GET    { color: #38bdf8; }
+    .req-method.POST   { color: #4ade80; }
+    .req-method.PATCH  { color: #fb923c; }
+    .req-method.DELETE { color: #f87171; }
+    .req-method.PUT    { color: #a78bfa; }
+    .req-detail { display: flex; flex-direction: column; gap: 0.2rem; }
+    .req-url    { color: #e2e8f0; word-break: break-all; }
+    .req-status { font-size: 0.7rem; }
+    .req-status.ok  { color: #4ade80; }
+    .req-status.err { color: #f87171; }
+    .req-entry.learn { background: #0c1a2e; border-left: 3px solid #38bdf8; }
+    .req-entry.learn .req-url { color: #7dd3fc; }
+    .req-source { font-size: 0.65rem; color: #38bdf8; font-weight: 700; letter-spacing: 0.06em; }
+    #req-log-clear { margin-left: 0.5rem; background: transparent; border: 1px solid #334155; color: #64748b; font-size: 0.68rem; padding: 0.1rem 0.4rem; border-radius: 3px; cursor: pointer; }
+    #req-log-clear:hover { color: #e2e8f0; border-color: #64748b; }
+    #req-log-panel.hide-local .req-entry:not(.learn) { display: none; }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .page-header { margin-bottom: 1.75rem; }
+    .page-header h2 { font-size: 1.3rem; font-weight: 700; color: var(--bright); }
+    .page-header p { font-size: 0.875rem; color: var(--muted); margin-top: 0.25rem; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .card h3 { font-size: 0.9rem; font-weight: 600; color: var(--bright); margin-bottom: 1rem; }
+
+    /* ── Form elements ── */
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.3rem; margin-top: 0.75rem; }
+    label:first-of-type { margin-top: 0; }
+
+    input, select {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.875rem;
+    }
+
+    input[type="password"] { letter-spacing: 0.1em; }
+    input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .hint { font-size: 0.72rem; color: var(--dim); margin-top: 0.25rem; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-block;
+      padding: 0.55rem 1.1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-secondary:hover { background: #475569; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: var(--danger-hover); }
+    .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.78rem; }
+    .btn-xs { padding: 0.15rem 0.45rem; font-size: 0.7rem; }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+    .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+    .btn-full { width: 100%; margin-top: 1rem; }
+    .btn-loading { opacity: 0.75; cursor: not-allowed; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+
+    #toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; z-index: 9999; pointer-events: none; }
+    .toast { background: #1e293b; color: #f8fafc; padding: 0.6rem 1rem; border-radius: 0.5rem; font-size: 0.82rem; box-shadow: 0 4px 12px rgba(0,0,0,0.25); opacity: 0; transform: translateY(8px); transition: opacity 0.2s, transform 0.2s; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ── Status dot ── */
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 0.4rem;
+    }
+    .dot-ok { background: var(--success); }
+    .dot-err { background: var(--error); }
+    .dot-idle { background: var(--dim); }
+
+    /* ── Playground tabs ── */
+    .pg-tab {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: var(--muted); font-size: 0.8rem; font-weight: 600;
+      padding: 0.6rem 1rem; cursor: pointer; transition: all 0.1s;
+      white-space: nowrap;
+    }
+    .pg-tab:hover { color: var(--text); }
+    .pg-tab.pg-tab-active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── CodeMirror body editor ── */
+    .CodeMirror {
+      height: auto; min-height: 200px; max-height: 480px;
+      font-size: 0.82rem; font-family: 'Fira Code', 'Cascadia Code', 'Menlo', monospace;
+      border-radius: 6px; border: 1px solid var(--border);
+      background: #1e2430; color: #abb2bf; line-height: 1.6;
+    }
+    .CodeMirror-scroll { min-height: 200px; max-height: 480px; }
+    .CodeMirror-gutters { background: #181e2a; border-right: 1px solid #2d3448; }
+    .CodeMirror-linenumber { color: #3d4557; padding: 0 8px 0 4px; }
+    .CodeMirror-cursor { border-left: 2px solid #6366f1; }
+    .CodeMirror-focused .CodeMirror-cursor { border-left-color: #818cf8; }
+    .CodeMirror-selected, .CodeMirror-line::selection, .CodeMirror-line > span::selection { background: rgba(99,102,241,0.18) !important; }
+    .cm-s-default .cm-string     { color: #98c379; }
+    .cm-s-default .cm-string-2   { color: #98c379; }
+    .cm-s-default .cm-number     { color: #d19a66; }
+    .cm-s-default .cm-atom       { color: #56b6c2; }
+    .cm-s-default .cm-keyword    { color: #c678dd; }
+    .cm-s-default .cm-property   { color: #e06c75; }
+    .cm-s-default .cm-punctuation{ color: #7a8499; }
+    .cm-s-default .cm-bracket    { color: #abb2bf; }
+
+    /* ── Method badges ── */
+    .method-badge {
+      display: inline-block;
+      font-size: 0.7rem; font-weight: 700; font-family: monospace;
+      padding: 0.2rem 0.5rem; border-radius: 5px;
+      min-width: 52px; text-align: center; flex-shrink: 0;
+    }
+    .method-GET    { background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.25); }
+    .method-POST   { background: rgba(74,222,128,0.12); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+    .method-PATCH  { background: rgba(251,146,60,0.12);  color: #fb923c; border: 1px solid rgba(251,146,60,0.25); }
+    .method-DELETE { background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.25); }
+    .method-PUT    { background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
+
+    /* ── Status badge ── */
+    .status-badge {
+      display: inline-block;
+      font-size: 0.75rem; font-weight: 700; font-family: monospace;
+      padding: 0.2rem 0.6rem; border-radius: 5px;
+    }
+    .status-2xx { background: rgba(74,222,128,0.12); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+    .status-4xx { background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.25); }
+    .status-5xx { background: rgba(251,146,60,0.12); color: #fb923c; border: 1px solid rgba(251,146,60,0.25); }
+    .status-other { background: var(--border); color: var(--muted); border: 1px solid var(--border); }
+
+    /* ── Entitlement pills ── */
+    .ent-pill {
+      font-size: 0.72rem; font-family: monospace;
+      padding: 2px 8px; border-radius: 4px;
+      background: rgba(99,102,241,0.08); color: #a5b4fc;
+      border: 1px solid rgba(99,102,241,0.2);
+      cursor: default; white-space: nowrap;
+    }
+    .ent-pill-wrap { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .ent-desc { font-size: 0.78rem; color: var(--muted); margin-top: 0.5rem; line-height: 1.5; }
+
+    /* ── Settings client cards ── */
+    .client-card {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.75rem 1rem; border: 1px solid var(--border);
+      border-radius: 8px; background: var(--bg);
+      margin-bottom: 0.6rem;
+    }
+    .client-card.active-client {
+      border-color: rgba(99,102,241,0.4);
+      background: rgba(99,102,241,0.06);
+    }
+    .client-active-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #4ade80; flex-shrink: 0;
+    }
+    .client-inactive-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--dim); flex-shrink: 0;
+    }
+    .client-info { flex: 1; min-width: 0; }
+    .client-name { font-size: 0.875rem; font-weight: 600; color: var(--bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .client-url { font-size: 0.72rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .client-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+
+    /* ── Playground layout ── */
+    .pg-top-bar {
+      display: flex; align-items: center; gap: 0.75rem;
+      margin-bottom: 1rem; flex-wrap: wrap;
+    }
+    .pg-top-bar label { margin: 0; white-space: nowrap; font-size: 0.78rem; }
+    .pg-top-bar select { width: auto; flex: 1; min-width: 140px; }
+    .pg-request-bar {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.4rem 0.6rem;
+      margin-bottom: 0.5rem;
+    }
+    .pg-search {
+      flex: 1; background: transparent; border: none;
+      color: var(--text); font-size: 0.875rem; outline: none;
+      padding: 0.25rem 0.4rem;
+    }
+    .pg-search::placeholder { color: var(--dim); }
+    .pg-url-bar {
+      font-size: 0.78rem; color: var(--muted); font-family: monospace;
+      padding: 0.3rem 0.75rem; background: rgba(15,23,42,0.5);
+      border: 1px solid rgba(51,65,85,0.5); border-radius: 6px;
+      margin-bottom: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pg-desc-row {
+      font-size: 0.82rem; color: var(--muted); margin-bottom: 0.75rem;
+      padding: 0.4rem 0; border-bottom: 1px solid var(--border);
+      min-height: 1.5rem;
+    }
+    .pg-tabs-bar {
+      display: flex; gap: 0; border-bottom: 1px solid var(--border);
+      margin-bottom: 1rem;
+    }
+    .pg-tab-panel { display: none; }
+    .pg-tab-panel.active { display: block; }
+
+    /* Params table */
+    .params-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .params-table th {
+      text-align: left; padding: 0.4rem 0.6rem;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em;
+      text-transform: uppercase; color: var(--dim);
+      border-bottom: 1px solid var(--border);
+    }
+    .params-table td { padding: 0.5rem 0.6rem; border-bottom: 1px solid rgba(51,65,85,0.4); vertical-align: top; }
+    .params-table tr:last-child td { border-bottom: none; }
+    .param-name { font-family: monospace; color: #7dd3fc; font-size: 0.82rem; }
+    .param-required { font-size: 0.65rem; color: #f87171; font-weight: 700; margin-left: 0.3rem; }
+    .param-type { font-size: 0.72rem; color: var(--dim); font-family: monospace; }
+    .param-desc { font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; }
+    .param-enum { font-size: 0.7rem; color: #a78bfa; margin-top: 0.2rem; }
+    .param-input {
+      width: 100%; padding: 0.3rem 0.5rem;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 5px; color: var(--text); font-size: 0.82rem;
+      font-family: monospace;
+    }
+    .param-input:focus { outline: none; border-color: var(--accent); }
+
+    /* Body toolbar */
+    .body-toolbar {
+      display: flex; align-items: center; gap: 0.5rem;
+      margin-bottom: 0.75rem; flex-wrap: wrap;
+    }
+    .body-req-pill {
+      font-size: 0.72rem; font-family: monospace;
+      padding: 2px 8px; border-radius: 4px; cursor: pointer;
+      background: rgba(99,102,241,0.08); color: #a5b4fc;
+      border: 1px solid rgba(99,102,241,0.2);
+      transition: background 0.1s;
+    }
+    .body-req-pill.active {
+      background: rgba(99,102,241,0.25); color: #c7d2fe;
+      border-color: rgba(99,102,241,0.5);
+    }
+    .body-toolbar-sep { flex: 1; }
+
+    /* Response card */
+    .response-tabs-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 0.75rem; }
+    .response-meta { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .response-time { font-size: 0.75rem; color: var(--muted); font-family: monospace; }
+    .response-body-wrap {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.75rem;
+      font-family: monospace; font-size: 0.8rem;
+      max-height: 380px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all;
+    }
+    .response-empty { color: var(--dim); font-style: italic; font-size: 0.82rem; text-align: center; padding: 2rem; }
+    .headers-table { font-size: 0.78rem; width: 100%; border-collapse: collapse; }
+    .headers-table td { padding: 0.3rem 0.5rem; border-bottom: 1px solid rgba(51,65,85,0.3); }
+    .headers-table td:first-child { color: #7dd3fc; font-family: monospace; white-space: nowrap; }
+    .headers-table td:last-child { color: var(--muted); word-break: break-all; }
+
+    /* Alerts */
+    .alert {
+      padding: 0.75rem 1rem; border-radius: 8px;
+      font-size: 0.82rem; margin-bottom: 1rem;
+      display: flex; align-items: flex-start; gap: 0.5rem;
+    }
+    .alert-warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); color: #fcd34d; }
+    .alert-err  { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); color: #f87171; }
+    .alert-info { background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.25); color: #7dd3fc; }
+
+    /* Dropdown for endpoint search */
+    .search-dropdown {
+      position: absolute; z-index: 200;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      max-height: 320px; overflow-y: auto;
+      width: 100%;
+    }
+    .search-dropdown-item {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.82rem;
+    }
+    .search-dropdown-item:hover, .search-dropdown-item.selected { background: rgba(99,102,241,0.12); }
+    .search-dropdown-item .path-text { font-family: monospace; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .search-dropdown-item .path-tags { font-size: 0.68rem; color: var(--dim); flex-shrink: 0; }
+    .search-wrap { position: relative; flex: 1; display: flex; align-items: center; }
+
+    /* CORS notice */
+    .cors-notice {
+      background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.2);
+      border-radius: 8px; padding: 1rem; margin-bottom: 1.25rem; font-size: 0.82rem;
+    }
+    .cors-notice h4 { color: #818cf8; font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .cors-notice p { color: var(--muted); margin-bottom: 0.4rem; }
+    .cors-notice code { background: rgba(99,102,241,0.1); padding: 0.1rem 0.35rem; border-radius: 3px; font-family: monospace; color: #a5b4fc; font-size: 0.8rem; }
+    .cors-notice ol { color: var(--muted); padding-left: 1.25rem; }
+    .cors-notice ol li { margin-bottom: 0.25rem; }
+
+    /* Version select row */
+    .version-select-wrap { display: flex; align-items: center; gap: 0.5rem; }
+    .version-select-wrap select { width: auto; }
+
+    /* Misc */
+    .flex-row { display: flex; align-items: center; gap: 0.5rem; }
+    .ml-auto { margin-left: auto; }
+    .no-endpoints { color: var(--dim); font-size: 0.85rem; padding: 2rem; text-align: center; }
+    .loading-text { color: var(--dim); font-size: 0.82rem; padding: 1rem; text-align: center; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+    .text-muted { color: var(--muted); font-size: 0.82rem; }
+    .monospace { font-family: monospace; }
+    code { font-family: monospace; }
+
+    /* JSON syntax highlight for response */
+    .j-key  { color: #7dd3fc; }
+    .j-str  { color: #86efac; }
+    .j-num  { color: #fbbf24; }
+    .j-bool { color: #a78bfa; }
+    .j-null { color: #94a3b8; }
+    .j-punc { color: #64748b; }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <h1>BB API Playground</h1>
+    <p>Blackboard Learn REST API</p>
+  </div>
+  <span class="nav-section-label">Tools</span>
+  <div class="nav-item active" id="nav-playground" onclick="navigate('playground')">
+    <span class="nav-icon">&#9889;</span> API Playground
+  </div>
+  <div class="nav-item" id="nav-settings" onclick="navigate('settings')">
+    <span class="nav-icon">&#9881;</span> Settings
+  </div>
+
+  <div class="sidebar-footer">
+    <div id="sidebar-client-chip" style="padding:0.6rem 0.75rem;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:7px;cursor:pointer" onclick="navigate('settings')" title="Click to manage clients">
+      <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--dim);margin-bottom:2px">Active Client</div>
+      <div id="sb-client-name" style="font-size:0.78rem;color:var(--bright);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div>
+      <div style="margin-top:3px;display:flex;align-items:center;gap:0.4rem">
+        <span style="width:6px;height:6px;border-radius:50%;background:#4ade80;flex-shrink:0"></span>
+        <span id="sb-api-version" style="font-size:0.68rem;color:var(--muted);font-family:monospace">—</span>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- Main -->
+<main class="main" id="main-content">
+
+  <!-- PLAYGROUND PAGE -->
+  <div class="page active" id="page-playground">
+    <div class="page-header">
+      <h2>API Playground</h2>
+      <p>Explore and test Blackboard Learn REST API endpoints directly.</p>
+    </div>
+
+    <!-- No client alert -->
+    <div id="pg-no-client" class="alert alert-warn" style="display:none">
+      &#9888; No active client configured. <span style="text-decoration:underline;cursor:pointer" onclick="navigate('settings')">Go to Settings</span> to add one.
+    </div>
+
+    <!-- Top bar: client selector + version -->
+    <div class="pg-top-bar">
+      <label style="white-space:nowrap">Client:</label>
+      <select id="pg-client-select" onchange="onPgClientChange(this.value)"></select>
+      <label style="white-space:nowrap;margin-left:0.5rem">API Version:</label>
+      <div class="version-select-wrap">
+        <select id="pg-version-select" onchange="onPgVersionChange(this.value)">
+          <option value="">Latest</option>
+        </select>
+        <button class="btn btn-sm btn-ghost" onclick="detectAndSetVersion()" title="Auto-detect version from Learn instance">&#128270; Detect</button>
+      </div>
+    </div>
+
+    <!-- Request bar -->
+    <div class="pg-request-bar" id="pg-request-bar">
+      <span id="pg-method-badge" class="method-badge method-GET">GET</span>
+      <div class="search-wrap">
+        <input type="text" class="pg-search" id="pg-search" placeholder="Search endpoints or type path…" autocomplete="off"
+          oninput="onPgSearch(this.value)"
+          onkeydown="onPgSearchKey(event)"
+          onfocus="showDropdown()"
+          onblur="hideDropdownDelayed()" />
+        <div id="pg-dropdown" class="search-dropdown" style="display:none"></div>
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="sendRequest()" id="pg-send-btn">Send</button>
+      <button class="btn btn-sm btn-ghost" onclick="copyCurl()" title="Copy as cURL">cURL</button>
+      <button class="btn btn-sm" style="background:transparent;border:1px solid var(--danger);color:var(--error);padding:0.3rem 0.6rem" onclick="clearPlayground()" title="Clear">&#10005;</button>
+    </div>
+
+    <!-- URL preview -->
+    <div class="pg-url-bar" id="pg-url-bar">—</div>
+
+    <!-- Description -->
+    <div class="pg-desc-row" id="pg-desc-row"></div>
+
+    <!-- Entitlements card -->
+    <div id="pg-ent-card" class="card" style="padding:1rem;margin-bottom:0.75rem;display:none">
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+        <span style="font-size:0.75rem;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.07em">Entitlements</span>
+      </div>
+      <div id="pg-ent-pills" class="ent-pill-wrap"></div>
+      <div id="pg-ent-descs" class="ent-desc"></div>
+    </div>
+
+    <!-- Params tabs -->
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="pg-tabs-bar" style="padding:0 1rem;background:var(--surface)">
+        <button class="pg-tab pg-tab-active" id="tab-path" onclick="switchParamTab('path')">Path Params</button>
+        <button class="pg-tab" id="tab-query" onclick="switchParamTab('query')">Query Params</button>
+        <button class="pg-tab" id="tab-body" onclick="switchParamTab('body')">Body</button>
+      </div>
+
+      <!-- Path params -->
+      <div class="pg-tab-panel active" id="panel-path" style="padding:1rem">
+        <div id="path-params-content">
+          <p class="text-muted" style="text-align:center;padding:1rem">No path parameters.</p>
+        </div>
+      </div>
+
+      <!-- Query params -->
+      <div class="pg-tab-panel" id="panel-query" style="padding:1rem">
+        <div id="query-params-content">
+          <p class="text-muted" style="text-align:center;padding:1rem">No query parameters.</p>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="pg-tab-panel" id="panel-body" style="padding:1rem">
+        <div id="body-content">
+          <p class="text-muted" style="text-align:center;padding:1rem">No request body for this method.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Response card -->
+    <div class="card" id="pg-response-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+        <span style="font-size:0.9rem;font-weight:600;color:var(--bright)">Response</span>
+        <div style="display:flex;gap:0.4rem">
+          <button class="btn btn-xs btn-ghost" onclick="copyResponse()">Copy</button>
+          <button class="btn btn-xs btn-ghost" onclick="clearResponse()">Clear</button>
+        </div>
+      </div>
+      <div class="response-tabs-bar">
+        <button class="pg-tab pg-tab-active" id="resp-tab-body" onclick="switchRespTab('body')">Response</button>
+        <button class="pg-tab" id="resp-tab-headers" onclick="switchRespTab('headers')">Headers</button>
+      </div>
+      <div id="resp-meta" class="response-meta" style="display:none">
+        <span id="resp-status-badge" class="status-badge">—</span>
+        <span id="resp-time-badge" class="response-time"></span>
+      </div>
+      <div id="resp-panel-body" class="pg-tab-panel active">
+        <div id="resp-body-display" class="response-empty">Send a request to see the response.</div>
+      </div>
+      <div id="resp-panel-headers" class="pg-tab-panel">
+        <div id="resp-headers-display" class="response-empty">No headers.</div>
+      </div>
+    </div>
+
+    <!-- Error display -->
+    <div id="pg-error-display" style="display:none" class="alert alert-err"></div>
+  </div>
+
+  <!-- SETTINGS PAGE -->
+  <div class="page" id="page-settings">
+    <div class="page-header">
+      <h2>Settings</h2>
+      <p>Manage your Blackboard Learn API clients.</p>
+    </div>
+
+    <!-- CORS notice -->
+    <div class="cors-notice">
+      <h4>&#128274; CORS Configuration Required</h4>
+      <p>To make API calls directly from the browser, you must allow this page's origin in your Learn instance:</p>
+      <ol>
+        <li>Log into Blackboard Learn as a System Administrator.</li>
+        <li>Go to <strong>System Admin → REST API Integrations</strong>.</li>
+        <li>Open your integration and add <code id="cors-origin-display">—</code> to the <strong>Allowed Origins</strong> list.</li>
+        <li>Save and test with the <em>Detect Version</em> button below.</li>
+      </ol>
+    </div>
+
+    <!-- Client list -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <h3 style="margin:0">Clients</h3>
+        <button class="btn btn-sm btn-primary" onclick="openClientForm()">+ Add Client</button>
+      </div>
+      <div id="client-list">
+        <p class="text-muted" style="text-align:center;padding:1rem">No clients configured.</p>
+      </div>
+    </div>
+
+    <!-- Add/Edit form -->
+    <div class="card" id="client-form-card" style="display:none">
+      <h3 id="client-form-title">Add Client</h3>
+      <input type="hidden" id="form-client-id" value="">
+      <label>Name</label>
+      <input type="text" id="form-name" placeholder="My Learn Instance" />
+      <label>Learn URL</label>
+      <input type="text" id="form-url" placeholder="https://your-learn.example.com" />
+      <div class="hint">Do not include a trailing slash.</div>
+      <div class="row" style="margin-top:0.75rem">
+        <div>
+          <label>App Key</label>
+          <input type="text" id="form-key" placeholder="Application Key" />
+        </div>
+        <div>
+          <label>Secret</label>
+          <input type="password" id="form-secret" placeholder="Application Secret" />
+        </div>
+      </div>
+      <label>Swagger URL <span style="color:var(--dim);font-weight:400">(optional)</span></label>
+      <input type="text" id="form-swagger" placeholder="Leave blank to use latest or auto-detected version" />
+      <div class="hint">Override to use a specific swagger version URL.</div>
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-top:1rem;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="saveClientForm()">Save</button>
+        <button class="btn btn-secondary" onclick="closeClientForm()">Cancel</button>
+        <button class="btn btn-ghost btn-sm" onclick="detectVersionFromForm()" id="detect-version-btn">&#128270; Detect Version</button>
+        <span id="detect-version-result" style="font-size:0.78rem;color:var(--muted);font-family:monospace"></span>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Request log panel -->
+<div id="req-log-panel" class="collapsed">
+  <div id="req-log-header" onclick="toggleReqLog()">
+    <span>Request Log</span>
+    <span id="req-log-count" style="font-family:monospace;color:#475569">0</span>
+    <label style="margin:0;font-size:0.7rem;color:#64748b;cursor:pointer;display:flex;align-items:center;gap:0.3rem" onclick="event.stopPropagation()">
+      <input type="checkbox" id="req-log-learn-only" onchange="toggleLearnOnly(this.checked)" style="width:auto;margin:0" /> Learn only
+    </label>
+    <button id="req-log-clear" onclick="event.stopPropagation();clearReqLog()">Clear</button>
+    <span id="req-log-toggle">&#9650;</span>
+  </div>
+  <div id="req-log-body"></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────
+const KNOWN_VERSIONS = [
+  "4000.20.0","4000.19.0","4000.18.0","4000.17.0","4000.16.0","4000.15.0","4000.14.0",
+  "4000.13.0","4000.12.0","4000.11.0","4000.10.0","4000.9.0","4000.8.0","4000.7.0",
+  "4000.6.0","4000.5.0","4000.4.0","4000.3.0","4000.2.0","4000.1.0",
+  "3900.98.0","3900.97.0","3900.96.0","3900.95.0","3900.94.0"
+];
+const SWAGGER_BASE = v => `https://devportal-docstore.s3.amazonaws.com/learn-swagger-${v}.json`;
+const SWAGGER_LATEST = `https://devportal-docstore.s3.amazonaws.com/learn-swagger.json`;
+const LS_KEY = 'bb_pg_clients';
+
+// ─────────────────────────────────────────────
+// Client storage
+// ─────────────────────────────────────────────
+function getClients() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { return []; }
+}
+function saveClients(list) {
+  localStorage.setItem(LS_KEY, JSON.stringify(list));
+}
+function getActiveClient() {
+  const list = getClients();
+  return list.find(c => c.is_active) || list[0] || null;
+}
+function activateClient(id) {
+  const list = getClients().map(c => ({...c, is_active: c.id === id}));
+  saveClients(list);
+}
+function upsertClient(obj) {
+  const list = getClients();
+  const idx = list.findIndex(c => c.id === obj.id);
+  if (idx >= 0) list[idx] = obj;
+  else list.push(obj);
+  saveClients(list);
+}
+function deleteClient(id) {
+  saveClients(getClients().filter(c => c.id !== id));
+}
+function newClientId() {
+  try { return crypto.randomUUID(); } catch { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+}
+
+// ─────────────────────────────────────────────
+// OAuth token management
+// ─────────────────────────────────────────────
+const _tokenCache = {};
+
+async function getToken(client) {
+  const cached = _tokenCache[client.id];
+  if (cached && cached.expiresAt > Date.now() + 5000) return cached.token;
+
+  const url = `${client.url}/learn/api/public/v1/oauth2/token`;
+  const creds = btoa(`${client.app_key}:${client.secret}`);
+  let resp;
+  try {
+    resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${creds}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: 'grant_type=client_credentials'
+    });
+  } catch (e) {
+    if (e instanceof TypeError) {
+      throw new Error(`CORS blocked. Add ${location.origin} to your Learn instance's REST API allowed origins (System Admin → REST API Integrations → CORS).`);
+    }
+    throw e;
+  }
+
+  logRequest({ts: Date.now(), method: 'POST', path: '/learn/api/public/v1/oauth2/token', status: resp.status, ms: 0, isLearn: false});
+
+  if (resp.status === 401 || resp.status === 403) {
+    throw new Error('Invalid app key or secret. Check your credentials in Settings.');
+  }
+  if (!resp.ok) {
+    throw new Error(`Token request failed: HTTP ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  _tokenCache[client.id] = { token: data.access_token, expiresAt: Date.now() + (data.expires_in || 1800) * 1000 };
+  return _tokenCache[client.id].token;
+}
+
+// ─────────────────────────────────────────────
+// Learn API call
+// ─────────────────────────────────────────────
+async function callLearn(client, method, path, body = null, params = null) {
+  const token = await getToken(client);
+  let url = client.url + path;
+  if (params) {
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([,v]) => v !== '' && v !== null && v !== undefined)));
+    if ([...qs.keys()].length) url += '?' + qs.toString();
+  }
+
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+
+  const opts = { method, headers };
+  if (body && ['POST','PUT','PATCH'].includes(method.toUpperCase())) {
+    opts.body = typeof body === 'string' ? body : JSON.stringify(body);
+  }
+
+  const t0 = Date.now();
+  let resp;
+  try {
+    resp = await fetch(url, opts);
+  } catch (e) {
+    if (e instanceof TypeError) {
+      throw new Error(`CORS blocked. Add ${location.origin} to your Learn instance's REST API allowed origins (System Admin → REST API Integrations → CORS).`);
+    }
+    throw e;
+  }
+  const ms = Date.now() - t0;
+
+  const respHeaders = {};
+  resp.headers.forEach((v, k) => { respHeaders[k] = v; });
+
+  let result;
+  const ct = resp.headers.get('content-type') || '';
+  if (ct.includes('application/json')) {
+    try { result = await resp.json(); } catch { result = null; }
+  } else {
+    result = await resp.text();
+  }
+
+  logRequest({ts: Date.now(), method: method.toUpperCase(), path, status: resp.status, ms, isLearn: true});
+
+  return { status_code: resp.status, result, headers: respHeaders };
+}
+
+// ─────────────────────────────────────────────
+// Version detection
+// ─────────────────────────────────────────────
+async function detectVersion(client) {
+  const r = await callLearn(client, 'GET', '/learn/api/public/v1/system/version');
+  const data = r.result;
+  const major = parseInt(data?.learn?.major || data?.major || 0, 10);
+  const minor = parseInt(data?.learn?.minor || data?.minor || 0, 10);
+  const version_string = `${major}.${minor}`;
+  const detected_swagger_version = KNOWN_VERSIONS.find(v => v.startsWith(version_string)) || null;
+  const suggested_swagger_url = detected_swagger_version ? SWAGGER_BASE(detected_swagger_version) : SWAGGER_LATEST;
+  return { version_string, detected_swagger_version, suggested_swagger_url };
+}
+
+// ─────────────────────────────────────────────
+// Swagger loading
+// ─────────────────────────────────────────────
+const _swaggerCache = {};
+
+async function loadSwagger(url) {
+  if (_swaggerCache[url]) return _swaggerCache[url];
+  const t0 = Date.now();
+  const resp = await fetch(url);
+  const ms = Date.now() - t0;
+  logRequest({ts: Date.now(), method: 'GET', path: url, status: resp.status, ms, isLearn: false});
+  if (!resp.ok) throw new Error(`Failed to load swagger: HTTP ${resp.status}`);
+  const sw = await resp.json();
+  _swaggerCache[url] = sw;
+  return sw;
+}
+
+function getSwaggerVersion(swagger) {
+  return swagger?.info?.version || 'unknown';
+}
+
+// ─────────────────────────────────────────────
+// Endpoint catalog builder
+// ─────────────────────────────────────────────
+function parseEntitlements(description) {
+  if (!description) return [];
+  const regex = /\b([a-z][a-z.]+\.[A-Z_]{2,})\b/g;
+  const seen = new Set();
+  const result = [];
+  let m;
+  while ((m = regex.exec(description)) !== null) {
+    const name = m[1];
+    if (!seen.has(name)) {
+      seen.add(name);
+      result.push({ name, description: entitlementDescription(name) });
+    }
+  }
+  return result;
+}
+
+function entitlementDescription(name) {
+  const parts = name.split('.');
+  const action = parts[parts.length - 1];
+  const domain = parts[0];
+  const resourceParts = parts.slice(1, -1);
+
+  const humanize = s => s.replace(/([A-Z])/g, ' $1').trim().toLowerCase().replace(/^./, c => c.toUpperCase());
+  const resource = resourceParts.map(humanize).join(' ');
+
+  const actionMap = { VIEW: 'View', MODIFY: 'Modify', CREATE: 'Create', DELETE: 'Delete', EXECUTE: 'Execute', WRITE: 'Write', READ: 'Read' };
+  const actionLabel = actionMap[action] || action;
+
+  if (resource) return `${actionLabel} ${resource} (${domain})`;
+  return `${actionLabel} (${domain})`;
+}
+
+function resolveSchema(schema, definitions, depth = 0) {
+  if (depth > 6 || !schema) return schema || {};
+  if (schema.$ref) {
+    const key = schema.$ref.split('/').pop();
+    const def = (definitions || {})[key];
+    if (!def) return {};
+    return resolveSchema(def, definitions, depth + 1);
+  }
+  return schema;
+}
+
+function schemaToTemplate(schema, definitions, requiredFilter = null, depth = 0) {
+  if (depth > 6) return null;
+  const resolved = resolveSchema(schema, definitions, depth);
+  const type = resolved.type || (resolved.properties ? 'object' : resolved.items ? 'array' : 'string');
+
+  if (type === 'object' || resolved.properties) {
+    const props = resolved.properties || {};
+    const result = {};
+    for (const [key, val] of Object.entries(props)) {
+      if (requiredFilter !== null && !requiredFilter.includes(key)) continue;
+      const childSchema = resolveSchema(val, definitions, depth + 1);
+      const childReq = childSchema.required || [];
+      const nextFilter = requiredFilter !== null ? (childReq.length ? childReq : null) : null;
+      result[key] = schemaToTemplate(val, definitions, nextFilter, depth + 1);
+    }
+    return result;
+  }
+  if (type === 'array') {
+    return [schemaToTemplate(resolved.items || {}, definitions, null, depth + 1)];
+  }
+  if (type === 'string') return (resolved.enum || [''])[0];
+  if (type === 'integer' || type === 'number') return 0;
+  if (type === 'boolean') return true;
+  return null;
+}
+
+function parseLookupTypes(description) {
+  if (!description) return [];
+  const skipWords = new Set(['primary','ID','type','Example','keyword','id','string','integer','boolean','number','array','object']);
+  const found = [];
+  const seen = new Set();
+
+  // match camelCase identifiers in <td>...</td>
+  const tdRegex = /<td>([^<]+)<\/td>/g;
+  let m;
+  while ((m = tdRegex.exec(description)) !== null) {
+    const tok = m[1].trim();
+    if (/^[a-z][A-Za-z]+$/.test(tok) && !skipWords.has(tok) && !seen.has(tok)) {
+      seen.add(tok);
+      found.push(tok);
+    }
+  }
+
+  // match |word| patterns
+  const pipeRegex = /\|([a-zA-Z][a-zA-Z]+)\|/g;
+  while ((m = pipeRegex.exec(description)) !== null) {
+    const tok = m[1].trim();
+    if (!skipWords.has(tok) && !seen.has(tok)) {
+      seen.add(tok);
+      found.push(tok);
+    }
+  }
+
+  return found;
+}
+
+function buildCatalog(swagger) {
+  const paths = swagger.paths || {};
+  const globalParams = swagger.parameters || {};
+  const definitions = swagger.definitions || swagger.components?.schemas || {};
+  const catalog = [];
+
+  const methods = ['get', 'post', 'patch', 'put', 'delete'];
+
+  for (const [path, pathObj] of Object.entries(paths)) {
+    for (const method of methods) {
+      if (!pathObj[method]) continue;
+      const op = pathObj[method];
+
+      // Resolve parameters (path-level + operation-level, with $ref support)
+      const rawParams = [...(pathObj.parameters || []), ...(op.parameters || [])];
+      const params = rawParams.map(p => {
+        if (p.$ref) {
+          const key = p.$ref.split('/').pop();
+          return globalParams[key] || p;
+        }
+        return p;
+      });
+
+      // Description — first sentence
+      const fullDesc = op.description || op.summary || '';
+      const firstSentence = fullDesc.split(/\.\s/)[0].replace(/<[^>]+>/g, '').trim();
+
+      // Entitlements
+      const entitlements = parseEntitlements(fullDesc);
+
+      // Responses
+      const responses = {};
+      for (const [code, rObj] of Object.entries(op.responses || {})) {
+        responses[code] = rObj.description || '';
+      }
+
+      // Path params
+      const pathParams = params
+        .filter(p => p.in === 'path')
+        .map(p => ({
+          name: p.name,
+          required: p.required !== false,
+          type: p.schema?.type || p.type || 'string',
+          description: p.description || '',
+          lookupTypes: parseLookupTypes(p.description || ''),
+          enum: p.schema?.enum || p.enum || null
+        }));
+
+      // Query params
+      const queryParams = params
+        .filter(p => p.in === 'query')
+        .map(p => ({
+          name: p.name,
+          required: !!p.required,
+          type: p.schema?.type || p.type || 'string',
+          description: p.description || '',
+          enum: p.schema?.enum || p.enum || null
+        }));
+
+      // Body
+      let bodyRequired = null;
+      let bodyMinimal = null;
+      let bodyFull = null;
+
+      if (['post', 'put', 'patch'].includes(method)) {
+        // OpenAPI 2 style
+        const bodyParam = params.find(p => p.in === 'body');
+        let bodySchema = null;
+        if (bodyParam) {
+          bodySchema = resolveSchema(bodyParam.schema, definitions);
+        } else if (op.requestBody) {
+          // OpenAPI 3 style
+          const content = op.requestBody.content || {};
+          const jsonContent = content['application/json'] || content['*/*'] || Object.values(content)[0];
+          if (jsonContent?.schema) {
+            bodySchema = resolveSchema(jsonContent.schema, definitions);
+          }
+        }
+
+        if (bodySchema) {
+          const req = bodySchema.required || [];
+          bodyRequired = req;
+          bodyMinimal = schemaToTemplate(bodySchema, definitions, req.length ? req : null, 0);
+          bodyFull = schemaToTemplate(bodySchema, definitions, null, 0);
+        }
+      }
+
+      catalog.push({
+        method: method.toUpperCase(),
+        path,
+        description: firstSentence,
+        fullDescription: fullDesc,
+        entitlements,
+        responses,
+        pathParams,
+        queryParams,
+        bodyRequired,
+        bodyMinimal,
+        bodyFull,
+        tags: op.tags || []
+      });
+    }
+  }
+
+  catalog.sort((a, b) => a.path.localeCompare(b.path) || a.method.localeCompare(b.method));
+  return catalog;
+}
+
+// ─────────────────────────────────────────────
+// Request log
+// ─────────────────────────────────────────────
+const _requestLog = [];
+
+function logRequest(entry) {
+  _requestLog.unshift(entry);
+  renderReqLogEntry(entry);
+  document.getElementById('req-log-count').textContent = _requestLog.length;
+}
+
+function renderReqLogEntry(entry) {
+  const body = document.getElementById('req-log-body');
+  const div = document.createElement('div');
+  div.className = 'req-entry' + (entry.isLearn ? ' learn' : '');
+
+  const ts = new Date(entry.ts);
+  const timeStr = ts.toTimeString().slice(0,8);
+  const statusClass = entry.status >= 200 && entry.status < 300 ? 'ok' : 'err';
+
+  div.innerHTML = `
+    <span class="req-time">${timeStr}</span>
+    <span class="req-method ${entry.method}">${entry.method}</span>
+    <div class="req-detail">
+      ${entry.isLearn ? '<span class="req-source">LEARN</span>' : ''}
+      <span class="req-url">${escHtml(entry.path)}</span>
+      <span class="req-status ${statusClass}">${entry.status}${entry.ms ? ` · ${entry.ms}ms` : ''}</span>
+    </div>`;
+
+  // Prepend (most recent first)
+  body.insertBefore(div, body.firstChild);
+}
+
+function clearReqLog() {
+  _requestLog.length = 0;
+  document.getElementById('req-log-body').innerHTML = '';
+  document.getElementById('req-log-count').textContent = '0';
+}
+
+function toggleReqLog() {
+  const panel = document.getElementById('req-log-panel');
+  const toggle = document.getElementById('req-log-toggle');
+  if (panel.classList.contains('collapsed')) {
+    panel.classList.remove('collapsed');
+    panel.classList.add('expanded');
+    toggle.innerHTML = '&#9660;';
+  } else {
+    panel.classList.remove('expanded');
+    panel.classList.add('collapsed');
+    toggle.innerHTML = '&#9650;';
+  }
+}
+
+function toggleLearnOnly(checked) {
+  document.getElementById('req-log-panel').classList.toggle('hide-local', checked);
+}
+
+// ─────────────────────────────────────────────
+// Navigation
+// ─────────────────────────────────────────────
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const pageEl = document.getElementById('page-' + page);
+  if (pageEl) pageEl.classList.add('active');
+  const navEl = document.getElementById('nav-' + page);
+  if (navEl) navEl.classList.add('active');
+
+  if (page === 'settings') renderSettings();
+}
+
+// ─────────────────────────────────────────────
+// Playground state
+// ─────────────────────────────────────────────
+let _pgCatalog = [];
+let _pgCurrentEndpoint = null;
+let _pgSwaggerVersion = '';
+let _cmEditor = null;
+let _activeBodyMode = 'minimal'; // 'minimal' or 'full'
+let _dropdownVisible = false;
+let _dropdownIdx = -1;
+let _dropdownItems = [];
+
+async function pgInit() {
+  const client = getActiveClient();
+  updateSidebarChip();
+  updatePgClientSelect();
+  populateVersionSelect();
+
+  if (!client) {
+    document.getElementById('pg-no-client').style.display = '';
+    return;
+  }
+  document.getElementById('pg-no-client').style.display = 'none';
+
+  // Load swagger
+  await pgLoadSwagger(client);
+}
+
+async function pgLoadSwagger(client) {
+  const swUrl = client.swagger_url || SWAGGER_LATEST;
+  try {
+    showToast('Loading API catalog…', 2000);
+    const sw = await loadSwagger(swUrl);
+    _pgCatalog = buildCatalog(sw);
+    document.getElementById('sb-api-version').textContent = getSwaggerVersion(sw);
+    showToast(`Loaded ${_pgCatalog.length} endpoints`, 2000);
+  } catch (e) {
+    showToast('Failed to load swagger: ' + e.message, 4000);
+  }
+}
+
+function updatePgClientSelect() {
+  const sel = document.getElementById('pg-client-select');
+  const clients = getClients();
+  const active = getActiveClient();
+  sel.innerHTML = clients.length
+    ? clients.map(c => `<option value="${c.id}" ${c.id === active?.id ? 'selected' : ''}>${escHtml(c.name)}</option>`).join('')
+    : '<option value="">No clients</option>';
+}
+
+function populateVersionSelect() {
+  const sel = document.getElementById('pg-version-select');
+  sel.innerHTML = '<option value="">Latest</option>' +
+    KNOWN_VERSIONS.map(v => `<option value="${v}">${v}</option>`).join('');
+  // Set current if client has a swagger_url
+  const client = getActiveClient();
+  if (client?.swagger_url) {
+    const match = client.swagger_url.match(/learn-swagger-([^.]+\.[^.]+\.[^.]+)\.json/);
+    if (match) sel.value = match[1];
+  }
+}
+
+async function onPgClientChange(id) {
+  activateClient(id);
+  updateSidebarChip();
+  populateVersionSelect();
+  await pgLoadSwagger(getActiveClient());
+}
+
+async function onPgVersionChange(version) {
+  const client = getActiveClient();
+  if (!client) return;
+  const url = version ? SWAGGER_BASE(version) : SWAGGER_LATEST;
+  // Temporarily override swagger_url for this session
+  client._sessionSwaggerUrl = url;
+  const sw = await loadSwagger(url).catch(e => { showToast('Failed: ' + e.message, 3000); return null; });
+  if (sw) {
+    _pgCatalog = buildCatalog(sw);
+    document.getElementById('sb-api-version').textContent = getSwaggerVersion(sw);
+    showToast(`Loaded ${_pgCatalog.length} endpoints (v${version || 'latest'})`, 2000);
+  }
+}
+
+async function detectAndSetVersion() {
+  const client = getActiveClient();
+  if (!client) { showToast('No active client', 2000); return; }
+  try {
+    showToast('Detecting version…', 2000);
+    const info = await detectVersion(client);
+    showToast(`Detected: ${info.detected_swagger_version || info.version_string}`, 3000);
+    const sel = document.getElementById('pg-version-select');
+    if (info.detected_swagger_version) {
+      sel.value = info.detected_swagger_version;
+      await onPgVersionChange(info.detected_swagger_version);
+    }
+  } catch (e) {
+    showToast('Detection failed: ' + e.message, 4000);
+  }
+}
+
+// ─────────────────────────────────────────────
+// Search & dropdown
+// ─────────────────────────────────────────────
+function onPgSearch(val) {
+  if (!val.trim()) {
+    hideDropdown();
+    return;
+  }
+  const lower = val.toLowerCase();
+  _dropdownItems = _pgCatalog.filter(ep =>
+    ep.path.toLowerCase().includes(lower) ||
+    ep.method.toLowerCase().includes(lower) ||
+    ep.description.toLowerCase().includes(lower) ||
+    ep.tags.some(t => t.toLowerCase().includes(lower))
+  ).slice(0, 50);
+  _dropdownIdx = -1;
+  renderDropdown();
+}
+
+function renderDropdown() {
+  const dd = document.getElementById('pg-dropdown');
+  if (!_dropdownItems.length) { dd.style.display = 'none'; return; }
+  dd.innerHTML = _dropdownItems.map((ep, i) => `
+    <div class="search-dropdown-item${i === _dropdownIdx ? ' selected' : ''}" data-idx="${i}" onmousedown="selectDropdownItem(${i})">
+      <span class="method-badge method-${ep.method}" style="font-size:0.65rem;padding:1px 5px">${ep.method}</span>
+      <span class="path-text">${escHtml(ep.path)}</span>
+      <span class="path-tags">${ep.tags.slice(0,1).join('')}</span>
+    </div>`).join('');
+  dd.style.display = 'block';
+  _dropdownVisible = true;
+}
+
+function showDropdown() {
+  const val = document.getElementById('pg-search').value;
+  if (val.trim()) renderDropdown();
+}
+
+function hideDropdown() {
+  document.getElementById('pg-dropdown').style.display = 'none';
+  _dropdownVisible = false;
+}
+
+function hideDropdownDelayed() {
+  setTimeout(hideDropdown, 150);
+}
+
+function selectDropdownItem(idx) {
+  const ep = _dropdownItems[idx];
+  if (!ep) return;
+  selectEndpoint(ep);
+  hideDropdown();
+}
+
+function onPgSearchKey(e) {
+  if (!_dropdownVisible) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    _dropdownIdx = Math.min(_dropdownIdx + 1, _dropdownItems.length - 1);
+    renderDropdown();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    _dropdownIdx = Math.max(_dropdownIdx - 1, -1);
+    renderDropdown();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (_dropdownIdx >= 0) selectDropdownItem(_dropdownIdx);
+    else if (_dropdownItems.length) selectDropdownItem(0);
+  } else if (e.key === 'Escape') {
+    hideDropdown();
+  }
+}
+
+function selectEndpoint(ep) {
+  _pgCurrentEndpoint = ep;
+  document.getElementById('pg-search').value = ep.path;
+  document.getElementById('pg-method-badge').textContent = ep.method;
+  document.getElementById('pg-method-badge').className = `method-badge method-${ep.method}`;
+  document.getElementById('pg-desc-row').textContent = ep.description;
+
+  updateUrlPreview();
+  renderEntitlements(ep);
+  renderPathParams(ep);
+  renderQueryParams(ep);
+  renderBody(ep);
+  clearResponse();
+  hideDropdown();
+}
+
+function updateUrlPreview() {
+  const client = getActiveClient();
+  const ep = _pgCurrentEndpoint;
+  if (!ep) { document.getElementById('pg-url-bar').textContent = '—'; return; }
+  const base = client?.url || '';
+  let path = ep.path;
+  // Fill in path params from inputs
+  for (const p of ep.pathParams) {
+    const inp = document.getElementById(`pp-${p.name}`);
+    const val = inp ? inp.value : `{${p.name}}`;
+    path = path.replace(`{${p.name}}`, val || `{${p.name}}`);
+  }
+  document.getElementById('pg-url-bar').textContent = base + path;
+}
+
+function renderEntitlements(ep) {
+  const card = document.getElementById('pg-ent-card');
+  const pills = document.getElementById('pg-ent-pills');
+  const descs = document.getElementById('pg-ent-descs');
+
+  if (!ep.entitlements.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  pills.innerHTML = ep.entitlements.map(e => `<span class="ent-pill" title="${escHtml(e.description)}">${escHtml(e.name)}</span>`).join('');
+  descs.innerHTML = ep.entitlements.map(e => `<div>${escHtml(e.description)}</div>`).join('');
+}
+
+function renderPathParams(ep) {
+  const container = document.getElementById('path-params-content');
+  if (!ep.pathParams.length) {
+    container.innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem">No path parameters.</p>';
+    return;
+  }
+  container.innerHTML = `<table class="params-table">
+    <thead><tr><th>Name</th><th>Type</th><th>Value</th><th>Description</th></tr></thead>
+    <tbody>${ep.pathParams.map(p => `
+      <tr>
+        <td><span class="param-name">${escHtml(p.name)}</span>${p.required ? '<span class="param-required">*</span>' : ''}</td>
+        <td><span class="param-type">${escHtml(p.type)}</span></td>
+        <td><input class="param-input" id="pp-${escAttr(p.name)}" placeholder="${escAttr(p.name)}" oninput="updateUrlPreview()" /></td>
+        <td>
+          <div class="param-desc">${escHtml(p.description)}</div>
+          ${p.lookupTypes.length ? `<div class="param-enum">Lookup types: ${p.lookupTypes.map(t => `<code>${escHtml(t)}</code>`).join(', ')}</div>` : ''}
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function renderQueryParams(ep) {
+  const container = document.getElementById('query-params-content');
+  if (!ep.queryParams.length) {
+    container.innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem">No query parameters.</p>';
+    return;
+  }
+  container.innerHTML = `<table class="params-table">
+    <thead><tr><th>Name</th><th>Required</th><th>Type</th><th>Value</th></tr></thead>
+    <tbody>${ep.queryParams.map(p => `
+      <tr>
+        <td>
+          <span class="param-name">${escHtml(p.name)}</span>
+          <div class="param-desc">${escHtml(p.description)}</div>
+          ${p.enum ? `<div class="param-enum">${p.enum.map(e => `<code>${escHtml(String(e))}</code>`).join(' ')}</div>` : ''}
+        </td>
+        <td style="color:${p.required ? 'var(--error)' : 'var(--dim)'};font-size:0.75rem">${p.required ? 'Yes' : 'No'}</td>
+        <td><span class="param-type">${escHtml(p.type)}</span></td>
+        <td>
+          ${p.enum
+            ? `<select class="param-input" id="qp-${escAttr(p.name)}"><option value=""></option>${p.enum.map(e => `<option value="${escAttr(String(e))}">${escHtml(String(e))}</option>`).join('')}</select>`
+            : `<input class="param-input" id="qp-${escAttr(p.name)}" placeholder="${escAttr(p.name)}" />`
+          }
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function renderBody(ep) {
+  const container = document.getElementById('body-content');
+
+  if (!['POST','PUT','PATCH'].includes(ep.method) || (ep.bodyMinimal === null && ep.bodyFull === null)) {
+    container.innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem">No request body for this method.</p>';
+    if (_cmEditor) { try { _cmEditor.toTextArea(); } catch {} _cmEditor = null; }
+    return;
+  }
+
+  const required = ep.bodyRequired || [];
+  const reqPills = required.map(r => `<span class="body-req-pill" onclick="toggleReqPill(this, '${escAttr(r)}')" data-field="${escAttr(r)}">${escHtml(r)}</span>`).join('');
+
+  container.innerHTML = `
+    <div class="body-toolbar">
+      ${reqPills ? `<span style="font-size:0.72rem;color:var(--dim);margin-right:0.2rem">Required:</span>${reqPills}` : ''}
+      <span class="body-toolbar-sep"></span>
+      <button class="btn btn-xs btn-ghost" id="body-btn-minimal" onclick="setBodyMode('minimal')">Minimal</button>
+      <button class="btn btn-xs btn-ghost" id="body-btn-full" onclick="setBodyMode('full')">Full</button>
+    </div>
+    <textarea id="body-editor-ta"></textarea>`;
+
+  // Init CodeMirror
+  const ta = document.getElementById('body-editor-ta');
+  _cmEditor = CodeMirror.fromTextArea(ta, {
+    mode: { name: 'javascript', json: true },
+    lineNumbers: true,
+    matchBrackets: true,
+    autoCloseBrackets: true,
+    theme: 'default',
+    indentWithTabs: false,
+    tabSize: 2,
+    lineWrapping: false
+  });
+
+  setBodyMode('minimal');
+}
+
+function setBodyMode(mode) {
+  _activeBodyMode = mode;
+  const ep = _pgCurrentEndpoint;
+  if (!ep || !_cmEditor) return;
+  const data = mode === 'full' ? ep.bodyFull : ep.bodyMinimal;
+  _cmEditor.setValue(data !== null ? JSON.stringify(data, null, 2) : '{}');
+  document.getElementById('body-btn-minimal')?.classList.toggle('btn-primary', mode === 'minimal');
+  document.getElementById('body-btn-minimal')?.classList.toggle('btn-ghost', mode !== 'minimal');
+  document.getElementById('body-btn-full')?.classList.toggle('btn-primary', mode === 'full');
+  document.getElementById('body-btn-full')?.classList.toggle('btn-ghost', mode !== 'full');
+}
+
+function toggleReqPill(el, field) {
+  el.classList.toggle('active');
+}
+
+function switchParamTab(tab) {
+  ['path','query','body'].forEach(t => {
+    document.getElementById('tab-' + t)?.classList.toggle('pg-tab-active', t === tab);
+    document.getElementById('panel-' + t)?.classList.toggle('active', t === tab);
+  });
+  if (tab === 'body' && _cmEditor) {
+    setTimeout(() => _cmEditor.refresh(), 50);
+  }
+}
+
+function switchRespTab(tab) {
+  ['body','headers'].forEach(t => {
+    document.getElementById('resp-tab-' + t)?.classList.toggle('pg-tab-active', t === tab);
+    document.getElementById('resp-panel-' + t)?.classList.toggle('active', t === tab);
+  });
+}
+
+// ─────────────────────────────────────────────
+// Send request
+// ─────────────────────────────────────────────
+async function sendRequest() {
+  const client = getActiveClient();
+  if (!client) { showError('No active client. Go to Settings and add one.'); return; }
+
+  const ep = _pgCurrentEndpoint;
+  if (!ep) { showError('No endpoint selected. Search for an endpoint first.'); return; }
+
+  // Build path with substitutions
+  let path = ep.path;
+  for (const p of ep.pathParams) {
+    const inp = document.getElementById(`pp-${p.name}`);
+    const val = inp ? inp.value.trim() : '';
+    if (!val && p.required) { showError(`Path parameter "${p.name}" is required.`); return; }
+    path = path.replace(`{${p.name}}`, encodeURIComponent(val) || `{${p.name}}`);
+  }
+
+  // Build query params
+  const params = {};
+  for (const p of ep.queryParams) {
+    const inp = document.getElementById(`qp-${p.name}`);
+    if (inp && inp.value.trim()) params[p.name] = inp.value.trim();
+  }
+
+  // Build body
+  let body = null;
+  if (['POST','PUT','PATCH'].includes(ep.method) && _cmEditor) {
+    const raw = _cmEditor.getValue().trim();
+    if (raw) {
+      try { body = JSON.parse(raw); } catch (e) { showError('Invalid JSON in request body: ' + e.message); return; }
+    }
+  }
+
+  // Disable send button
+  const sendBtn = document.getElementById('pg-send-btn');
+  sendBtn.disabled = true;
+  sendBtn.innerHTML = '<span class="spinner"></span> Sending…';
+  hideError();
+
+  try {
+    const r = await callLearn(client, ep.method, path, body, Object.keys(params).length ? params : null);
+    showResponse(r);
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'Send';
+  }
+}
+
+function showResponse(r) {
+  // Status badge
+  const statusEl = document.getElementById('resp-status-badge');
+  statusEl.textContent = r.status_code;
+  let cls = 'status-other';
+  if (r.status_code >= 200 && r.status_code < 300) cls = 'status-2xx';
+  else if (r.status_code >= 400 && r.status_code < 500) cls = 'status-4xx';
+  else if (r.status_code >= 500) cls = 'status-5xx';
+  statusEl.className = 'status-badge ' + cls;
+
+  // Time (already logged)
+  const lastLearn = _requestLog.find(e => e.isLearn);
+  document.getElementById('resp-time-badge').textContent = lastLearn ? `${lastLearn.ms}ms` : '';
+
+  document.getElementById('resp-meta').style.display = 'flex';
+
+  // Body
+  const bodyEl = document.getElementById('resp-body-display');
+  if (r.result !== null && r.result !== undefined) {
+    const pretty = typeof r.result === 'string' ? r.result : JSON.stringify(r.result, null, 2);
+    bodyEl.className = 'response-body-wrap';
+    bodyEl.innerHTML = syntaxHighlight(pretty);
+  } else {
+    bodyEl.className = 'response-empty';
+    bodyEl.textContent = '(empty response)';
+  }
+
+  // Headers
+  const headEl = document.getElementById('resp-headers-display');
+  const entries = Object.entries(r.headers);
+  if (entries.length) {
+    headEl.innerHTML = `<table class="headers-table"><tbody>${entries.map(([k,v]) =>
+      `<tr><td>${escHtml(k)}</td><td>${escHtml(v)}</td></tr>`).join('')}</tbody></table>`;
+    headEl.className = '';
+  } else {
+    headEl.className = 'response-empty';
+    headEl.textContent = 'No headers.';
+  }
+}
+
+function clearResponse() {
+  document.getElementById('resp-meta').style.display = 'none';
+  const bodyEl = document.getElementById('resp-body-display');
+  bodyEl.className = 'response-empty';
+  bodyEl.textContent = 'Send a request to see the response.';
+  const headEl = document.getElementById('resp-headers-display');
+  headEl.className = 'response-empty';
+  headEl.textContent = 'No headers.';
+  document.getElementById('resp-status-badge').textContent = '—';
+  document.getElementById('resp-status-badge').className = 'status-badge status-other';
+}
+
+function clearPlayground() {
+  _pgCurrentEndpoint = null;
+  document.getElementById('pg-search').value = '';
+  document.getElementById('pg-method-badge').textContent = 'GET';
+  document.getElementById('pg-method-badge').className = 'method-badge method-GET';
+  document.getElementById('pg-url-bar').textContent = '—';
+  document.getElementById('pg-desc-row').textContent = '';
+  document.getElementById('pg-ent-card').style.display = 'none';
+  document.getElementById('path-params-content').innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem">No path parameters.</p>';
+  document.getElementById('query-params-content').innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem">No query parameters.</p>';
+  document.getElementById('body-content').innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem">No request body for this method.</p>';
+  if (_cmEditor) { try { _cmEditor.toTextArea(); } catch {} _cmEditor = null; }
+  clearResponse();
+  hideError();
+}
+
+function showError(msg) {
+  const el = document.getElementById('pg-error-display');
+  el.style.display = 'flex';
+  el.textContent = msg;
+}
+function hideError() {
+  document.getElementById('pg-error-display').style.display = 'none';
+}
+
+function copyResponse() {
+  const bodyEl = document.getElementById('resp-body-display');
+  const text = bodyEl.textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('Copied!', 1500)).catch(() => showToast('Copy failed', 1500));
+}
+
+function copyCurl() {
+  const client = getActiveClient();
+  const ep = _pgCurrentEndpoint;
+  if (!client || !ep) { showToast('Select an endpoint first', 2000); return; }
+
+  let path = ep.path;
+  for (const p of ep.pathParams) {
+    const inp = document.getElementById(`pp-${p.name}`);
+    path = path.replace(`{${p.name}}`, inp?.value || `{${p.name}}`);
+  }
+  const params = {};
+  for (const p of ep.queryParams) {
+    const inp = document.getElementById(`qp-${p.name}`);
+    if (inp?.value.trim()) params[p.name] = inp.value.trim();
+  }
+  let url = client.url + path;
+  if (Object.keys(params).length) url += '?' + new URLSearchParams(params).toString();
+
+  let curl = `curl -X ${ep.method} "${url}" \\\n  -H "Authorization: Bearer <TOKEN>" \\\n  -H "Content-Type: application/json"`;
+  if (_cmEditor && ['POST','PUT','PATCH'].includes(ep.method)) {
+    const body = _cmEditor.getValue().trim();
+    if (body) curl += ` \\\n  -d '${body.replace(/'/g, "\\'")}'`;
+  }
+
+  navigator.clipboard.writeText(curl).then(() => showToast('cURL copied!', 1500)).catch(() => showToast('Copy failed', 1500));
+}
+
+// ─────────────────────────────────────────────
+// Settings page
+// ─────────────────────────────────────────────
+function renderSettings() {
+  // Update CORS origin display
+  document.getElementById('cors-origin-display').textContent = location.origin;
+
+  const container = document.getElementById('client-list');
+  const clients = getClients();
+  if (!clients.length) {
+    container.innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem">No clients configured.</p>';
+    return;
+  }
+  container.innerHTML = clients.map(c => `
+    <div class="client-card ${c.is_active ? 'active-client' : ''}">
+      <span class="${c.is_active ? 'client-active-dot' : 'client-inactive-dot'}"></span>
+      <div class="client-info">
+        <div class="client-name">${escHtml(c.name)}</div>
+        <div class="client-url">${escHtml(c.url)}</div>
+      </div>
+      <div class="client-actions">
+        ${!c.is_active ? `<button class="btn btn-xs btn-primary" onclick="setActiveClient('${c.id}')">Activate</button>` : `<span style="font-size:0.72rem;color:var(--success);font-weight:600">Active</span>`}
+        <button class="btn btn-xs btn-ghost" onclick="editClient('${c.id}')">Edit</button>
+        <button class="btn btn-xs btn-danger" onclick="removeClient('${c.id}')">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+function setActiveClient(id) {
+  activateClient(id);
+  renderSettings();
+  updateSidebarChip();
+  updatePgClientSelect();
+  pgLoadSwagger(getActiveClient());
+}
+
+function removeClient(id) {
+  if (!confirm('Delete this client?')) return;
+  deleteClient(id);
+  renderSettings();
+  updateSidebarChip();
+  updatePgClientSelect();
+}
+
+function editClient(id) {
+  const client = getClients().find(c => c.id === id);
+  if (!client) return;
+  document.getElementById('form-client-id').value = client.id;
+  document.getElementById('form-name').value = client.name;
+  document.getElementById('form-url').value = client.url;
+  document.getElementById('form-key').value = client.app_key;
+  document.getElementById('form-secret').value = client.secret;
+  document.getElementById('form-swagger').value = client.swagger_url || '';
+  document.getElementById('client-form-title').textContent = 'Edit Client';
+  document.getElementById('detect-version-result').textContent = '';
+  document.getElementById('client-form-card').style.display = '';
+  document.getElementById('client-form-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+function openClientForm() {
+  document.getElementById('form-client-id').value = '';
+  document.getElementById('form-name').value = '';
+  document.getElementById('form-url').value = '';
+  document.getElementById('form-key').value = '';
+  document.getElementById('form-secret').value = '';
+  document.getElementById('form-swagger').value = '';
+  document.getElementById('client-form-title').textContent = 'Add Client';
+  document.getElementById('detect-version-result').textContent = '';
+  document.getElementById('client-form-card').style.display = '';
+  document.getElementById('client-form-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+function closeClientForm() {
+  document.getElementById('client-form-card').style.display = 'none';
+}
+
+function saveClientForm() {
+  const id = document.getElementById('form-client-id').value || newClientId();
+  const name = document.getElementById('form-name').value.trim();
+  const url = document.getElementById('form-url').value.trim().replace(/\/$/, '');
+  const app_key = document.getElementById('form-key').value.trim();
+  const secret = document.getElementById('form-secret').value.trim();
+  const swagger_url = document.getElementById('form-swagger').value.trim();
+
+  if (!name || !url || !app_key || !secret) { showToast('Name, URL, App Key, and Secret are required.', 3000); return; }
+
+  const clients = getClients();
+  const isNew = !clients.find(c => c.id === id);
+  const is_active = isNew ? !clients.length : (clients.find(c => c.id === id)?.is_active || false);
+
+  upsertClient({ id, name, url, app_key, secret, swagger_url: swagger_url || null, is_active });
+  if (isNew && !clients.length) activateClient(id);
+
+  closeClientForm();
+  renderSettings();
+  updateSidebarChip();
+  updatePgClientSelect();
+  // Clear cached token so it re-fetches
+  delete _tokenCache[id];
+  showToast('Client saved.', 2000);
+}
+
+async function detectVersionFromForm() {
+  const url = document.getElementById('form-url').value.trim().replace(/\/$/, '');
+  const app_key = document.getElementById('form-key').value.trim();
+  const secret = document.getElementById('form-secret').value.trim();
+  if (!url || !app_key || !secret) { showToast('Fill in URL, App Key, and Secret first.', 2500); return; }
+
+  const tmpClient = { id: '_detect_tmp', url, app_key, secret };
+  const btn = document.getElementById('detect-version-btn');
+  const resultEl = document.getElementById('detect-version-result');
+  btn.textContent = 'Detecting…'; btn.disabled = true;
+  resultEl.textContent = '';
+
+  try {
+    const info = await detectVersion(tmpClient);
+    resultEl.textContent = `Detected: ${info.detected_swagger_version || info.version_string}`;
+    if (info.detected_swagger_version) {
+      document.getElementById('form-swagger').value = info.suggested_swagger_url;
+    }
+    showToast('Version detected: ' + (info.detected_swagger_version || info.version_string), 3000);
+  } catch (e) {
+    resultEl.textContent = 'Error: ' + e.message;
+    showToast('Detection failed', 2500);
+  } finally {
+    btn.textContent = '⌕ Detect Version'; btn.disabled = false;
+  }
+}
+
+// ─────────────────────────────────────────────
+// Sidebar chip
+// ─────────────────────────────────────────────
+function updateSidebarChip() {
+  const client = getActiveClient();
+  document.getElementById('sb-client-name').textContent = client ? client.name : '(none)';
+}
+
+// ─────────────────────────────────────────────
+// Toast
+// ─────────────────────────────────────────────
+function showToast(msg, duration = 2500) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = msg;
+  container.appendChild(toast);
+  requestAnimationFrame(() => { requestAnimationFrame(() => { toast.classList.add('show'); }); });
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// ─────────────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function syntaxHighlight(json) {
+  json = json.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function(match) {
+    let cls = 'j-num';
+    if (/^"/.test(match)) {
+      if (/:$/.test(match)) { cls = 'j-key'; }
+      else { cls = 'j-str'; }
+    } else if (/true|false/.test(match)) { cls = 'j-bool'; }
+    else if (/null/.test(match)) { cls = 'j-null'; }
+    return `<span class="${cls}">${match}</span>`;
+  });
+}
+
+// ─────────────────────────────────────────────
+// Boot
+// ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  navigate('playground');
+  pgInit();
+});
+</script>
+</body>
+</html>
