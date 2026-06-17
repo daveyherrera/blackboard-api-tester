@@ -350,15 +350,15 @@
     }
     .pg-search::placeholder { color: var(--dim); }
     .pg-url-bar {
-      font-size: 0.78rem; color: var(--muted); font-family: monospace;
-      padding: 0.3rem 0.75rem; background: rgba(15,23,42,0.5);
-      border: 1px solid rgba(51,65,85,0.5); border-radius: 6px;
-      margin-bottom: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-size: 0.76rem; color: var(--muted); font-family: monospace;
+      padding: 6px 10px; background: rgba(0,0,0,0.25);
+      border: none; border-radius: 5px;
+      word-break: break-all; min-height: 28px;
     }
     .pg-desc-row {
-      font-size: 0.82rem; color: var(--muted); margin-bottom: 0.75rem;
-      padding: 0.4rem 0; border-bottom: 1px solid var(--border);
-      min-height: 1.5rem;
+      font-size: 0.8rem; color: var(--muted); margin-bottom: 0;
+      padding: 0.45rem 0 0; border: none;
+      line-height: 1.5;
     }
     .pg-tabs-bar {
       display: flex; gap: 0; border-bottom: 1px solid var(--border);
@@ -438,10 +438,10 @@
     /* Dropdown for endpoint search */
     .search-dropdown {
       position: absolute; z-index: 200;
+      top: calc(100% + 4px); left: 0; right: 0;
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
       max-height: 320px; overflow-y: auto;
-      width: 100%;
     }
     .search-dropdown-item {
       display: flex; align-items: center; gap: 0.6rem;
@@ -544,35 +544,39 @@
       </div>
     </div>
 
-    <!-- Request bar -->
-    <div class="pg-request-bar" id="pg-request-bar">
-      <span id="pg-method-badge" class="method-badge method-GET">GET</span>
-      <div class="search-wrap">
-        <input type="text" class="pg-search" id="pg-search" placeholder="Search endpoints or type path…" autocomplete="off"
-          oninput="onPgSearch(this.value)"
-          onkeydown="onPgSearchKey(event)"
-          onfocus="showDropdown()"
-          onblur="hideDropdownDelayed()" />
-        <div id="pg-dropdown" class="search-dropdown" style="display:none"></div>
+    <!-- Request card -->
+    <div class="card" style="margin-bottom:1rem;padding:0.85rem 1rem">
+
+      <!-- Row 1: Method | Search | Send | cURL | X -->
+      <div style="display:flex;gap:0.6rem;align-items:center">
+        <span id="pg-method-badge" class="method-badge method-GET" style="flex-shrink:0;min-width:64px;text-align:center;cursor:default;font-size:0.78rem;padding:6px 10px">GET</span>
+        <div class="search-wrap" style="flex:1;position:relative">
+          <input type="text" class="pg-search" id="pg-search" placeholder="Search endpoints by name, path, or tag…" autocomplete="off"
+            oninput="onPgSearch(this.value)"
+            onkeydown="onPgSearchKey(event)"
+            onfocus="showDropdown()"
+            onblur="hideDropdownDelayed()" />
+          <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--dim);pointer-events:none;font-size:0.8rem">&#128269;</span>
+          <div id="pg-dropdown" class="search-dropdown" style="display:none"></div>
+        </div>
+        <button class="btn btn-sm btn-primary" onclick="sendRequest()" id="pg-send-btn" style="flex-shrink:0;white-space:nowrap">&#9654; Send</button>
+        <button class="btn btn-sm btn-ghost" onclick="copyCurl()" id="pg-curl-btn" title="Copy as cURL" style="flex-shrink:0">cURL</button>
+        <button class="btn btn-sm btn-clear" onclick="clearPlayground()" title="Clear" style="flex-shrink:0">&#10005;</button>
       </div>
-      <button class="btn btn-sm btn-primary" onclick="sendRequest()" id="pg-send-btn">Send</button>
-      <button class="btn btn-sm btn-ghost" onclick="copyCurl()" title="Copy as cURL">cURL</button>
-      <button class="btn btn-sm btn-clear" onclick="clearPlayground()" title="Clear">&#10005;</button>
-    </div>
 
-    <!-- URL preview -->
-    <div class="pg-url-bar" id="pg-url-bar">—</div>
+      <!-- Row 2: URL preview -->
+      <div class="pg-url-bar" id="pg-url-bar" style="margin-top:0.6rem">—</div>
 
-    <!-- Description -->
-    <div class="pg-desc-row" id="pg-desc-row"></div>
+      <!-- Row 3: Description -->
+      <div class="pg-desc-row" id="pg-desc-row" style="display:none;margin-bottom:0"></div>
 
-    <!-- Entitlements card -->
-    <div id="pg-ent-card" class="card" style="padding:1rem;margin-bottom:0.75rem;display:none">
-      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
-        <span style="font-size:0.75rem;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.07em">Entitlements</span>
+      <!-- Row 4: Entitlements -->
+      <div id="pg-ent-card" style="display:none;margin-top:0.6rem;padding:0.55rem 0.75rem;background:rgba(99,102,241,0.04);border:1px solid rgba(99,102,241,0.15);border-radius:7px">
+        <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--dim);margin-bottom:0.5rem">Required Entitlements</div>
+        <div id="pg-ent-pills" class="ent-pill-wrap" style="margin-bottom:0.35rem"></div>
+        <div id="pg-ent-descs" style="font-size:0.75rem;color:var(--muted);display:flex;flex-direction:column;gap:0.15rem"></div>
       </div>
-      <div id="pg-ent-pills" class="ent-pill-wrap"></div>
-      <div id="pg-ent-descs" class="ent-desc"></div>
+
     </div>
 
     <!-- Params tabs -->
@@ -1005,6 +1009,7 @@ function buildCatalog(swagger) {
     for (const method of methods) {
       if (!pathObj[method]) continue;
       const op = pathObj[method];
+      if (op.deprecated) continue;
 
       // Resolve parameters (path-level + operation-level, with $ref support)
       const rawParams = [...(pathObj.parameters || []), ...(op.parameters || [])];
@@ -1361,7 +1366,9 @@ function selectEndpoint(ep) {
   document.getElementById('pg-search').value = ep.path;
   document.getElementById('pg-method-badge').textContent = ep.method;
   document.getElementById('pg-method-badge').className = `method-badge method-${ep.method}`;
-  document.getElementById('pg-desc-row').textContent = ep.description;
+  const descEl = document.getElementById('pg-desc-row');
+  descEl.textContent = ep.description;
+  descEl.style.display = ep.description ? '' : 'none';
 
   updateUrlPreview();
   renderEntitlements(ep);
@@ -1627,6 +1634,7 @@ function clearPlayground() {
   document.getElementById('pg-method-badge').className = 'method-badge method-GET';
   document.getElementById('pg-url-bar').textContent = '—';
   document.getElementById('pg-desc-row').textContent = '';
+  document.getElementById('pg-desc-row').style.display = 'none';
   document.getElementById('pg-ent-card').style.display = 'none';
   document.getElementById('path-params-content').innerHTML = '<p class="text-muted empty-params">No path parameters.</p>';
   document.getElementById('query-params-content').innerHTML = '<p class="text-muted empty-params">No query parameters.</p>';
